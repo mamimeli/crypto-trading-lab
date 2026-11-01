@@ -44,7 +44,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 from collections import deque
 
 from crypto_trading_lab.domain.models import Candle, OrderSide
-from crypto_trading_lab.indicators.library import RSI
+from crypto_trading_lab.indicators.library import RSIStream
 from crypto_trading_lab.execution_realism import (
     ExecutionConfig,
     FillType,
@@ -1016,8 +1016,10 @@ class RSIStrategy:
             raise ValueError("trend_filter_period must be non-negative")
         if self.cooldown < 0:
             raise ValueError("cooldown must be non-negative")
-        self._rsi: tuple = ()
         self._cooldown_remaining: int = 0
+        # Streaming RSI: recomputing the whole series per candle made a run
+        # quadratic once the engine started handing over a growing view.
+        self._rsi_stream = RSIStream(self.period)
 
     @property
     def name(self) -> str:
@@ -1026,11 +1028,6 @@ class RSIStrategy:
     @property
     def warmup_candles(self) -> int:
         return self.period + 1
-
-    def _series(self, candles):
-        if len(self._rsi) != len(candles):
-            self._rsi = RSI(self.period).compute(candles).values
-        return self._rsi
 
     def _volume_ok(self, index, candles) -> bool:
         p = self.volume_filter_period
@@ -1053,8 +1050,8 @@ class RSIStrategy:
         return candles[index].close > average
 
     def on_candle(self, index, candles):
-        values = self._series(candles)
-        value = values[index]
+        value = self._rsi_stream.update(candles[index])
+        previous = self._rsi_stream.prev_value
         if value is None:
             return None
         if self._cooldown_remaining > 0:
@@ -1063,12 +1060,11 @@ class RSIStrategy:
             return None
         if self.trend_filter_period > 0 and not self._trend_ok(index, candles):
             return None
-        if index >= 1 and values[index - 1] is not None:
-            prev = values[index - 1]
-            if prev > self.oversold and value <= self.oversold:
+        if index >= 1 and previous is not None:
+            if previous > self.oversold and value <= self.oversold:
                 if self._cooldown_remaining == 0:
                     return OrderSide.BUY
-            if prev < self.overbought and value >= self.overbought:
+            if previous < self.overbought and value >= self.overbought:
                 self._cooldown_remaining = self.cooldown
                 return OrderSide.SELL
         elif value >= self.overbought:
@@ -1078,8 +1074,7 @@ class RSIStrategy:
 
     def indicator_values(self, index, candles):
         """The RSI reading the decision was taken on (chapter 33.5)."""
-        values = self._series(candles)
-        return {"rsi": values[index] if index < len(values) else None}
+        return {"rsi": self._rsi_stream.value}
 
 @dataclass
 class RollingHighLowBreakoutStrategy:

@@ -12,6 +12,23 @@ per-chapter state of the specification, see [`ROADMAP.md`](ROADMAP.md).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A quadratic backtest introduced by the chapter 33.6 candle view.** The
+  engine now hands strategies a growing view of the past instead of the whole
+  sequence, which invalidated the length-keyed indicator caches in
+  `RSIStrategy` and `RuleStrategy` on every candle: a 2 000-candle run went
+  from ~0.02 s to 16 s for RSI and 12 s for a rule. Both now use streaming
+  indicators. New `EMAStream`, `RSIStream`, `ATRStream` and `ROCStream` join
+  `SMAStream`; `tests/indicators/test_streams.py` compares every stream
+  against its batch formula value by value, including the warm-up `None`s, so
+  a stream cannot drift from the documented formula and silently change
+  results. Measured after the fix: 5 000 candles in 0.09 s (RSI) and 0.35 s
+  (rule), linear in the number of candles. One test in
+  `tests/backtesting/test_strategies_33.py` called `on_candle` out of order —
+  the old recompute tolerated it, the streaming contract (which the SMA
+  strategies always had) does not — and now feeds the candles in order.
+
 ### Added
 
 - **Chapter 33.8 (research warnings) — the caveats that travel with the

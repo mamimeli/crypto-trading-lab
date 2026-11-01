@@ -19,7 +19,18 @@ from decimal import Decimal, InvalidOperation
 from typing import Sequence
 
 from crypto_trading_lab.domain.models import Candle, OrderSide
-from crypto_trading_lab.indicators.library import ATR, EMA, ROC, RSI, SMA
+from crypto_trading_lab.indicators.library import (
+    ATR,
+    ATRStream,
+    EMA,
+    EMAStream,
+    ROC,
+    ROCStream,
+    RSI,
+    RSIStream,
+    SMA,
+    SMAStream,
+)
 
 __all__ = [
     "RuleError",
@@ -62,6 +73,23 @@ def _indicator(name: str, period: int):
         "rsi": RSI,
         "atr": ATR,
         "roc": ROC,
+    }[name](period)
+
+
+def _stream(name: str, period: int):
+    """The incremental form of an indicator, so a run stays O(N).
+
+    ``_indicator`` recomputes the whole series; calling it once per candle
+    would make a rule backtest quadratic. These keep the same state the batch
+    formulas use and are compared against them in
+    ``tests/indicators/test_streams.py``.
+    """
+    return {
+        "sma": SMAStream,
+        "ema": EMAStream,
+        "rsi": RSIStream,
+        "atr": ATRStream,
+        "roc": ROCStream,
     }[name](period)
 
 
@@ -222,8 +250,12 @@ class RuleStrategy:
     def __init__(self, spec: RuleStrategySpec) -> None:
         self.spec = spec
         self.version = spec.version
-        self._cache: dict[str, tuple[Decimal | None, ...]] = {}
-        self._cache_length = -1
+        # One growing list per operand and one stream per indicator, so a run
+        # of N candles costs O(N) instead of recomputing each series on every
+        # candle (the engine hands over a growing view of the past, so a
+        # length-keyed cache would be invalidated every step).
+        self._cache: dict[str, list] = {}
+        self._streams: dict[str, object] = {}
         self._entry_price: Decimal | None = None
         self._in_market = False
 
@@ -235,20 +267,29 @@ class RuleStrategy:
 
     def _series(self, operand: str, candles: Sequence[Candle]):
         key = validate_operand(operand)
-        if key in _PRICE_FIELDS:
-            return tuple(getattr(candle, key) for candle in candles)
         if _NUMBER_RE.match(key):
             return Decimal(key)
+        series = self._cache.get(key)
+        if series is None:
+            series = []
+            self._cache[key] = series
+        if key in _PRICE_FIELDS:
+            self._extend(series, candles, lambda candle: getattr(candle, key))
+            return series
         match = _INDICATOR_RE.match(key)
         assert match is not None
-        name, period = match.group(1), int(match.group(2))
-        if self._cache_length != len(candles):
-            # The candle series changed: every cached indicator is stale.
-            self._cache.clear()
-            self._cache_length = len(candles)
-        if key not in self._cache:
-            self._cache[key] = _indicator(name, period).compute(candles).values
-        return self._cache[key]
+        stream = self._streams.get(key)
+        if stream is None:
+            stream = _stream(match.group(1), int(match.group(2)))
+            self._streams[key] = stream
+        self._extend(series, candles, stream.update)
+        return series
+
+    @staticmethod
+    def _extend(series: list, candles: Sequence[Candle], produce) -> None:
+        """Feed the candles the strategy has not seen yet into the series."""
+        while len(series) < len(candles):
+            series.append(produce(candles[len(series)]))
 
     def _value(self, operand: str, index: int, candles: Sequence[Candle]):
         series = self._series(operand, candles)

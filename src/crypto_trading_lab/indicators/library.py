@@ -9,6 +9,7 @@ supports batch calculation. Results are aligned with the input: index
 from __future__ import annotations
 
 import abc
+from collections import deque
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Sequence
@@ -22,10 +23,14 @@ __all__ = [
     "SMA",
     "SMAStream",
     "EMA",
+    "EMAStream",
     "RSI",
+    "RSIStream",
     "BollingerBands",
     "ATR",
+    "ATRStream",
     "ROC",
+    "ROCStream",
 ]
 
 
@@ -401,3 +406,158 @@ class ROC(Indicator):
                 candles[index].close / past - Decimal(1)
             ) * Decimal(100)
         return IndicatorResult("ROC", tuple(values))
+
+
+# -- streaming variants (chapter 13 performance) -----------------------------
+#
+# ``X.compute(candles)`` recomputes the whole series, so calling it once per
+# candle inside a backtest costs O(N^2). The streams below keep the state the
+# formula needs and return one value per candle in O(1). Each one reproduces
+# its batch counterpart exactly — ``tests/indicators/test_streams.py`` compares
+# them value by value, because a stream that drifts from the documented
+# formula would silently change every backtest that uses it.
+
+
+class EMAStream:
+    """Incremental EMA, seeded with the SMA of the first ``period`` closes."""
+
+    def __init__(self, period: int = 20) -> None:
+        if not isinstance(period, int) or period < 1:
+            raise IndicatorError(
+                f"EMA period must be a positive integer, got {period!r}"
+            )
+        self.period = period
+        self._alpha = Decimal(2) / Decimal(period + 1)
+        self._seed_closes: list[Decimal] = []
+        self._ema: Decimal | None = None
+        self.value: Decimal | None = None
+        self.prev_value: Decimal | None = None
+
+    def update(self, candle: Candle) -> Decimal | None:
+        self.prev_value = self.value
+        if self._ema is None:
+            self._seed_closes.append(candle.close)
+            if len(self._seed_closes) == self.period:
+                self._ema = sum(self._seed_closes) / Decimal(self.period)
+                self.value = self._ema
+            else:
+                self.value = None
+        else:
+            self._ema = (
+                self._alpha * candle.close
+                + (Decimal(1) - self._alpha) * self._ema
+            )
+            self.value = self._ema
+        return self.value
+
+
+class RSIStream:
+    """Incremental RSI with Wilder smoothing."""
+
+    def __init__(self, period: int = 14) -> None:
+        if not isinstance(period, int) or period < 1:
+            raise IndicatorError(
+                f"RSI period must be a positive integer, got {period!r}"
+            )
+        self.period = period
+        self._previous_close: Decimal | None = None
+        self._gains: list[Decimal] = []
+        self._losses: list[Decimal] = []
+        self._avg_gain: Decimal | None = None
+        self._avg_loss: Decimal | None = None
+        self.value: Decimal | None = None
+        self.prev_value: Decimal | None = None
+
+    def update(self, candle: Candle) -> Decimal | None:
+        self.prev_value = self.value
+        if self._previous_close is None:
+            self._previous_close = candle.close
+            self.value = None
+            return None
+        change = candle.close - self._previous_close
+        self._previous_close = candle.close
+        gain = max(change, Decimal(0))
+        loss = max(-change, Decimal(0))
+        if self._avg_gain is None:
+            self._gains.append(gain)
+            self._losses.append(loss)
+            if len(self._gains) == self.period:
+                self._avg_gain = sum(self._gains) / Decimal(self.period)
+                self._avg_loss = sum(self._losses) / Decimal(self.period)
+                self.value = RSI._rsi_from(self._avg_gain, self._avg_loss)
+            else:
+                self.value = None
+        else:
+            n = Decimal(self.period)
+            self._avg_gain = (
+                self._avg_gain * (n - 1) + gain
+            ) / n
+            self._avg_loss = (
+                self._avg_loss * (n - 1) + loss
+            ) / n
+            self.value = RSI._rsi_from(self._avg_gain, self._avg_loss)
+        return self.value
+
+
+class ATRStream:
+    """Incremental ATR with Wilder smoothing of the true range."""
+
+    def __init__(self, period: int = 14) -> None:
+        if not isinstance(period, int) or period < 1:
+            raise IndicatorError("ATR period must be a positive integer")
+        self.period = period
+        self._previous_close: Decimal | None = None
+        self._true_ranges: list[Decimal] = []
+        self._atr: Decimal | None = None
+        self.value: Decimal | None = None
+        self.prev_value: Decimal | None = None
+
+    def update(self, candle: Candle) -> Decimal | None:
+        self.prev_value = self.value
+        if self._previous_close is None:
+            self._previous_close = candle.close
+            self.value = None
+            return None
+        true_range = max(
+            candle.high - candle.low,
+            abs(candle.high - self._previous_close),
+            abs(candle.low - self._previous_close),
+        )
+        self._previous_close = candle.close
+        if self._atr is None:
+            self._true_ranges.append(true_range)
+            if len(self._true_ranges) == self.period:
+                self._atr = sum(self._true_ranges) / Decimal(self.period)
+                self.value = self._atr
+            else:
+                self.value = None
+        else:
+            n = Decimal(self.period)
+            self._atr = (self._atr * (n - 1) + true_range) / n
+            self.value = self._atr
+        return self.value
+
+
+class ROCStream:
+    """Incremental rate of change over ``period`` candles."""
+
+    def __init__(self, period: int = 10) -> None:
+        if not isinstance(period, int) or period < 1:
+            raise IndicatorError("ROC period must be a positive integer")
+        self.period = period
+        self._closes: deque = deque(maxlen=period + 1)
+        self.value: Decimal | None = None
+        self.prev_value: Decimal | None = None
+
+    def update(self, candle: Candle) -> Decimal | None:
+        self.prev_value = self.value
+        self._closes.append(candle.close)
+        if len(self._closes) < self.period + 1:
+            self.value = None
+            return None
+        past = self._closes[0]
+        if past == 0:
+            self.value = None  # undefined rate of change, as in the batch form
+            return None
+        self.value = (candle.close / past - Decimal(1)) * Decimal(100)
+        return self.value

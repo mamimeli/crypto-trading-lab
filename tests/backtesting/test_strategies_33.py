@@ -74,8 +74,12 @@ def test_rsi_emits_buy_and_sell_on_crossings():
             sell_idx = i
     assert buy_idx is not None
     assert sell_idx is not None
-    assert s.on_candle(buy_idx, candles) == OrderSide.BUY
-    assert s.on_candle(sell_idx, candles) == OrderSide.SELL
+    # ``on_candle`` is a streaming interface: the engine feeds every candle in
+    # order, so the test must too (the RSI used to be recomputed from scratch,
+    # which allowed jumping to an index but cost O(N) per candle).
+    decisions = [s.on_candle(i, candles[: i + 1]) for i in range(len(candles))]
+    assert decisions[buy_idx] == OrderSide.BUY
+    assert decisions[sell_idx] == OrderSide.SELL
 
 
 def test_rsi_trend_filter_blocks_entry():
