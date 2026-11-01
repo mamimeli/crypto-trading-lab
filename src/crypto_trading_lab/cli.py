@@ -227,6 +227,11 @@ def _print_backtest(run: application.BacktestRun) -> None:
         )
     for warning in report.warnings:
         print(f"Warning: {warning}")
+    if run.research_warnings:
+        print()
+        print("Before you trust this result (chapter 33.8):")
+        for statement in run.research_warnings:
+            print(f"  - {statement}")
     print()
     print(report.disclaimer)
 

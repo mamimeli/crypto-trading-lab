@@ -51,6 +51,7 @@ from crypto_trading_lab.strategy_validation import (
     StrategyValidationError,
     validate_for_run,
 )
+from crypto_trading_lab.research_warnings import warnings_for_run
 
 __all__ = [
     "REQUIRED_MODULES",
@@ -297,6 +298,8 @@ class BacktestRun:
     #: What chapter 33.7 found before the run. Warnings do not block it, so
     #: they travel with the result and the CLI prints them.
     validation: "StrategyValidation | None" = None
+    #: The chapter 33.8 statements that apply to this run, in chapter order.
+    research_warnings: tuple[str, ...] = ()
 
 
 def load_config_file(path: str | Path) -> dict[str, Any]:
@@ -614,6 +617,13 @@ def run_backtest_file(
         )
 
     report = compute_performance(result, benchmark=benchmark_result)
+    # Chapter 33.8: the statements the user must see next to the number.
+    complexity = registration.metadata.complexity
+    research_warnings = warnings_for_run(
+        parameters=len(schema),
+        filters=(complexity.num_filters if complexity is not None else 0),
+        complexity_recorded=complexity is not None,
+    )
     return BacktestRun(
         strategy_name=strategy.name,
         config=config,
@@ -622,6 +632,7 @@ def run_backtest_file(
         dataset=dataset,
         candle_count=len(candles),
         validation=validation,
+        research_warnings=research_warnings,
     )
 
 

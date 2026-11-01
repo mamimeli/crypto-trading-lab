@@ -229,6 +229,26 @@ def test_backtest_runs_and_prints_metrics(tmp_path, capsys):
     assert "do not predict future returns" in output
 
 
+def test_backtest_prints_the_research_warnings(tmp_path, capsys):
+    """Chapter 33.8: the number never appears without its caveats."""
+    data_dir = tmp_path / "data"
+    csv_path = write_candles(tmp_path / "candles.csv")
+    assert run(["import-csv", str(csv_path), "--data-dir", str(data_dir)]) == 0
+    config = tmp_path / "strategy.json"
+    config.write_text(
+        json.dumps({"strategy": "ma_crossover", "fast": 5, "slow": 20}),
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+
+    assert run(["backtest", str(config), "--data-dir", str(data_dir)]) == 0
+    output = capsys.readouterr().out
+
+    assert "Before you trust this result" in output
+    assert "perform well historically by chance" in output
+    assert "IN-SAMPLE" in output
+
+
 def test_backtest_records_the_cost_model_by_default(tmp_path, capsys):
     """Every run states which execution model it used (56.2)."""
     data_dir = tmp_path / "data"

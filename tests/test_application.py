@@ -209,6 +209,26 @@ def test_the_backtest_keeps_the_warnings_validation_raised(paths, tmp_path):
     assert any("warm-up eats" in issue.message for issue in run.validation.warnings)
 
 
+def test_the_backtest_says_what_the_user_must_not_forget(paths, tmp_path):
+    """Chapter 33.8: the number is never shown without its caveats."""
+    application.import_csv_file(
+        write_candles(tmp_path / "candles.csv"), paths=paths
+    )
+    config = write_config(
+        tmp_path / "strategy.json",
+        {"strategy": "ma_crossover", "fast": 5, "slow": 20},
+    )
+
+    run = application.run_backtest_file(config, paths=paths)
+
+    assert run.research_warnings
+    assert any("IN-SAMPLE" in statement for statement in run.research_warnings)
+    assert any(
+        "does not necessarily mean a better strategy" in statement
+        for statement in run.research_warnings
+    )
+
+
 
 def test_backtest_benchmark_can_be_disabled(paths, tmp_path):
     application.import_csv_file(

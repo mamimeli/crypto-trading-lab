@@ -14,6 +14,22 @@ per-chapter state of the specification, see [`ROADMAP.md`](ROADMAP.md).
 
 ### Added
 
+- **Chapter 33.8 (research warnings) — the caveats that travel with the
+  number.** New `research_warnings.py` holds the chapter's seven statements
+  as constants, because a warning paraphrased differently on every screen is
+  a warning nobody can test. `warnings_for_run()` returns the ones that apply
+  to a run: chance and "profit is not quality" always; overfitting when the
+  strategy declares three or more parameters or the run was optimized on the
+  same data; the filter warning when filters exist; the out-of-sample warning
+  unless the run was evaluated out of sample; the complexity warning when the
+  chapter 35 record is missing. The CLI prints them under "Before you trust
+  this result", and the Backtesting Lab appends the same canonical text to its
+  "Please read before trusting this" block — the hand-written duplicates in
+  the GUI were removed so the two surfaces cannot drift. 6 of 7 boxes ticked;
+  the seventh ("favour simpler strategies when performance is comparable")
+  stays open because `prefer_simpler` still has no screen that compares two
+  strategies.
+
 - **Chapter 33.6 (mandatory architecture) closed — the flow is enforced, not
   described.** `run_backtest()` now builds a `RiskManager` per run and
   evaluates every order it would create, including exits: a refusal means no

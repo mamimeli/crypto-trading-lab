@@ -15,14 +15,14 @@ A new AI Agent must read this file **before** doing anything else, then
 - **Repository:** `https://github.com/wachin/crypto-trading-lab`
   (branch `main`)
 - **State verified at commit:** the commit that carries this file.
-- **Tests:** 1127 passed, 2 skipped, **exit code 0** —
+- **Tests:** 1141 passed, 2 skipped, **exit code 0** —
   `QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q`
   (The exit code matters: the suite used to segfault while the interpreter
   shut down, so it printed "passed" and still failed the build. See §5.)
-- **CI:** `tests` is **green on `main`**, but **not yet at 1127**: the last
+- **CI:** `tests` is **green on `main`**, but **not yet at 1141**: the last
   observed green run reports 990/2 on `ubuntu-24.04` with pip and carries
-  **no annotations**. The chapter 35, 33.4, 33.5, 33.6 and 33.7 changes add 137
-  tests in total (990 → 1127) and have only been
+  **no annotations**. The chapter 35, 33.4, 33.5, 33.6, 33.7 and 33.8 changes add 151
+  tests in total (990 → 1141) and have only been
   measured locally (Windows, Python 3.12). The history is at
   [actions/workflows/tests.yml](https://github.com/wachin/crypto-trading-lab/actions/workflows/tests.yml).
   The first green run was `38777456963` (2026-10-15); the suite had never
@@ -30,7 +30,7 @@ A new AI Agent must read this file **before** doing anything else, then
 - **Verified platforms:** Debian 13 (system packages, Python 3.13.5) and
   **Windows 10** (pip/PyPI, Python 3.14.7, 2026-10-01 — clean install, the
   window opens, identical numbers, `ccxt` reaches the network). The Windows
-  path was re-measured on 2026-10-31 with **Python 3.12**: 1127/2, after two
+  path was re-measured on 2026-10-31 with **Python 3.12**: 1141/2, after two
   platform assumptions in the suite were fixed (see §5.2 item 10).
 - **macOS — deferred by the maintainer's decision, not a pending task.** It
   comes last, once the program works on Linux and Windows. Do not spend a
@@ -87,7 +87,9 @@ A new AI Agent must read this file **before** doing anything else, then
   refuse it and warnings travel with the result. Chapter 33.6 (the mandatory
   architecture) closed the same day (§5.2 item 15): every order now passes
   through the risk manager, and the strategy/exchange boundary is checked by
-  an import scan instead of being asserted in prose.
+  an import scan instead of being asserted in prose. Chapter 33.8 (research
+  warnings) advanced the same day (§5.2 item 16): the seven statements now
+  live in one module and both the CLI and the GUI print the same text.
   **Real trading remains disabled by default.**
 
 ### What changed on 2026-09-19 (direction correction + Fase A/B)
@@ -593,6 +595,22 @@ features the code did not ship. Concretely:
     trusting a result: chance, overfitting, filters that do not help, the
     out-of-sample rule) or 33.9 (per-strategy beginner documentation, which the
     beginner docs already partly cover and should be wired to each strategy).
+16. ~~**Chapter 33.8 — research warnings.**~~ **6 of 7 done 2026-10-31** (same
+    stage as items 11–15). `research_warnings.py` holds the chapter's seven
+    statements as constants; `warnings_for_run()` returns the applicable ones
+    (chance and "profit is not quality" always, overfitting at three or more
+    parameters or after an optimization on the same data, the filter warning
+    when filters exist, out-of-sample unless evaluated out of sample,
+    complexity when the chapter 35 record is missing). The CLI prints them and
+    the Backtesting Lab appends the same text, so the two surfaces cannot
+    drift. **The seventh box stays open:** "favour simpler strategies when
+    performance is comparable" needs a screen that compares two strategies,
+    and `prefer_simpler` still has no caller — same honest state as chapter
+    35. Chapter 33 is `[~]` at 48 of 86 boxes; 33.1–33.3 and 33.9 remain.
+    **Next task:** chapter 33.9 (per-strategy beginner documentation: what it
+    assumes, what it reads, what makes it enter and exit, when it hurts) —
+    it is the last piece of chapter 33 that is not structural, and the
+    beginner docs already cover the shared vocabulary.
 
 Anything in `ROADMAP.md` marked `[ ]` or `[~]` is fair game. The roadmap is
 the specification; this list is only the recommended order.
@@ -618,7 +636,7 @@ git submodule update --init external/freqtrade
 # 2. Verify the environment:
 python3 --version            # ≥ 3.11 expected (3.13 on record)
 python3 -c "import PyQt6, pyqtgraph, sqlalchemy, platformdirs; print('deps OK')"
-QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1127 passed, 2 skipped expected
+QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1141 passed, 2 skipped expected
 
 # 3. Read in this order:
 #    1. AGENT-HANDOFF.md (this file) — state and next steps
@@ -632,4 +650,4 @@ If the test count differs, stop and report it before changing anything.
 
 ---
 
-*Handoff updated 2026-10-31. Baseline: 1127 passed, 2 skipped.*
+*Handoff updated 2026-10-31. Baseline: 1141 passed, 2 skipped.*

@@ -59,6 +59,7 @@ from crypto_trading_lab.rule_strategy import (
 )
 
 from crypto_trading_lab.strategy_registry import StrategyRegistry
+from crypto_trading_lab.research_warnings import warnings_for_run
 
 STRATEGY_SMA = "ma_crossover"
 STRATEGY_BUY_HOLD = "buy_and_hold"
@@ -253,8 +254,17 @@ class BacktestingLabWidget(QWidget):
 
         self._last_export = (result, report, benchmark_warning)
         self.save_button.setEnabled(True)
+        # Chapter 33.8: the statements that apply to this run.
+        complexity = self._declared_complexity()
+        research_warnings = warnings_for_run(
+            parameters=(
+                complexity.num_parameters if complexity is not None else 0
+            ),
+            filters=complexity.num_filters if complexity is not None else 0,
+            complexity_recorded=complexity is not None,
+        )
         text = self._render(result, report, benchmark_warning,
-                            benchmark_report)
+                            benchmark_report, research_warnings)
         self.results_view.setPlainText(text)
         return text
 
@@ -711,7 +721,8 @@ class BacktestingLabWidget(QWidget):
         )
 
     def _render(self, result, report, benchmark_warning: str | None = None,
-                benchmark_report=None) -> str:
+                benchmark_report=None,
+                research_warnings: tuple[str, ...] = ()) -> str:
         """Plain-language result report (chapters 37.9, 37.10, 40.8)."""
         r, s, risk, a = report.returns, report.trades, report.risk, report.activity
         lines = [
@@ -807,10 +818,6 @@ class BacktestingLabWidget(QWidget):
             "",
             self.tr("== Please read before trusting this =="),
             self.tr(
-                "• This test used IN-SAMPLE historical data only; the "
-                "strategy may simply have memorized the past."
-            ),
-            self.tr(
                 "• Commissions and fees are what exchanges charge per "
                 "trade; spread and slippage are the extra cost of "
                 "buying a bit too high and selling a bit too low."
@@ -819,15 +826,11 @@ class BacktestingLabWidget(QWidget):
                 "• Liquidity matters: real orders move the price, so "
                 "real fills can be worse than simulated ones."
             ),
-            self.tr(
-                "• Historical results can be misleading: markets "
-                "change, and a past pattern may never repeat."
-            ),
-            self.tr(
-                "• A profitable backtest is NOT proof of future "
-                "profitability, and real trading results often differ "
-                "from simulations."
-            ),
+        ]
+        # Chapter 33.8: the canonical statements, shared with the CLI, so the
+        # two surfaces cannot drift into saying slightly different things.
+        lines.extend(f"• {statement}" for statement in research_warnings)
+        lines += [
             "",
             DISCLAIMER,
         ]

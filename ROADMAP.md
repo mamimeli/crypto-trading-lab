@@ -139,7 +139,7 @@ task order is in `AGENT-HANDOFF.md` §5.2.
 | 30 | [~] | 14 | 11 | No | Market precision and exchange rules |
 | 31 | [~] | 23 | 6 | No | Technical indicators |
 | 32 | [~] | 18 | 16 | No | Financial charts |
-| 33 | [~] | 42 | 44 | No | Strategies |
+| 33 | [~] | 48 | 38 | No | Strategies |
 | 34 | [ ] | 0 | 24 | No | Visual strategy builder |
 | 35 | [~] | 9 | 3 | Yes | Strategy complexity control |
 | 36 | [~] | 4 | 15 | No | Strategy registry |
@@ -2354,13 +2354,34 @@ coerced in `__post_init__`, and an unknown name says so.
 
 The application must warn users that:
 
-* [ ] A strategy can perform well historically by chance.
-* [ ] More parameters increase the risk of overfitting.
-* [ ] Adding filters does not necessarily improve a strategy.
-* [ ] A higher historical profit does not necessarily mean a better strategy.
-* [ ] A strategy must be evaluated on data that was not used to design or optimize it.
-* [ ] Strategy complexity should be recorded (see Chapter 35).
+* [x] A strategy can perform well historically by chance.
+* [x] More parameters increase the risk of overfitting.
+* [x] Adding filters does not necessarily improve a strategy.
+* [x] A higher historical profit does not necessarily mean a better strategy.
+* [x] A strategy must be evaluated on data that was not used to design or optimize it.
+* [x] Strategy complexity should be recorded (see Chapter 35).
 * [ ] The system should favor simpler strategies when performance is otherwise comparable.
+
+**Implemented 2026-10-31 (6 of 7).** `research_warnings.py` holds the seven
+statements as constants, because a warning rewritten slightly differently on
+every screen is a warning nobody can test. `warnings_for_run()` returns the
+ones that apply: chance and "profit is not quality" always; overfitting when
+the strategy declares three or more parameters **or** the run was optimized
+on the same data; the filter warning when filters exist; the out-of-sample
+warning unless the run was evaluated out of sample; and the complexity
+warning when the strategy's chapter 35 record is missing.
+
+The CLI prints them under "Before you trust this result" after the metrics,
+and the Backtesting Lab appends the same canonical text to its "Please read
+before trusting this" block — the duplicated hand-written lines in the GUI
+were removed so the two surfaces cannot drift.
+
+**The last box stays open on purpose.** "The system should favour simpler
+strategies when performance is otherwise comparable" needs a screen that
+compares two strategies; `prefer_simpler` exists and is tested (chapter 35),
+but nothing calls it yet, so `SIMPLER_WINS` is carried in the statement set
+and shown as policy rather than claimed as behaviour. Same honest state as
+chapter 35's two open boxes.
 
 ### 33.9 Beginner documentation
 

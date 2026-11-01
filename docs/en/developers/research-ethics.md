@@ -60,6 +60,31 @@ Crypto Trading Lab maintains **scientific and professional honesty at every stag
 * A guarantee of profits
 * An oracle that knows which trades to make
 
+### The chapter 33.8 statements (single source of truth)
+
+The seven things a user must be told next to a backtest number live in
+`research_warnings.py` as constants, because a warning paraphrased
+differently on every screen is a warning nobody can test:
+
+| Constant | When it appears |
+|---|---|
+| `CHANCE` | always |
+| `OVERFITTING` | three or more parameters, **or** the run was optimized on the same data |
+| `FILTERS` | the strategy declares filters |
+| `HIGHER_PROFIT` | always |
+| `OUT_OF_SAMPLE` | unless the run was evaluated out of sample |
+| `COMPLEXITY` | when the chapter 35 record is missing |
+| `SIMPLER_WINS` | not per run: it is standing policy, shown in the full set |
+
+`warnings_for_run()` returns the applicable ones in chapter order; the CLI
+prints them under "Before you trust this result" and the Backtesting Lab
+appends the same text to its "Please read before trusting this" block.
+Because both read this module, the two surfaces cannot drift.
+
+One limit, stated: `prefer_simpler` (chapter 35) is implemented and tested
+but nothing calls it yet, so `SIMPLER_WINS` is shown as policy rather than
+claimed as behaviour, and the matching roadmap box stays open.
+
 ## Scientific discipline
 
 * Favor simpler explanations when they fit the evidence

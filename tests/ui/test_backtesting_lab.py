@@ -91,8 +91,11 @@ def test_beginner_explanation_and_honesty(lab):
     text = lab.run_and_display()
     # 37.10 + 40.8 mandatory explanations and disclaimers.
     assert "BTC/USDT" in text
+    # Chapter 33.8: the statements come from one canonical set shared with
+    # the CLI, so they say the same thing on both surfaces.
     assert "IN-SAMPLE" in text
-    assert "NOT proof of future profitability" in text
+    assert "A strategy can perform well historically by chance" in text
+    assert "does not necessarily mean a better strategy" in text
     assert "No single metric proves that a strategy is good" in text
     assert "Commissions and fees are what exchanges charge" in text
     assert "Liquidity matters" in text
