@@ -10,19 +10,19 @@ A new AI Agent must read this file **before** doing anything else, then
 
 ---
 
-## 1. Project state (last updated 2026-10-31)
+## 1. Project state (last updated 2026-11-01)
 
 - **Repository:** `https://github.com/wachin/crypto-trading-lab`
   (branch `main`)
 - **State verified at commit:** the commit that carries this file.
-- **Tests:** 1228 passed, 2 skipped, **exit code 0** —
+- **Tests:** 1240 passed, 2 skipped, **exit code 0** —
   `QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q`
   (The exit code matters: the suite used to segfault while the interpreter
   shut down, so it printed "passed" and still failed the build. See §5.)
-- **CI:** `tests` is **green on `main`**, but **not yet at 1228**: the last
+- **CI:** `tests` is **green on `main`**, but **not yet at 1240**: the last
   observed green run reports 990/2 on `ubuntu-24.04` with pip and carries
   **no annotations**. The chapter 35, 33.4, 33.5, 33.6, 33.7, 33.8 and 33.9
-  changes add 217 tests in total (990 → 1228) and have only been
+  changes add 217 tests in total (990 → 1240) and have only been
   measured locally (Windows, Python 3.12). The history is at
   [actions/workflows/tests.yml](https://github.com/wachin/crypto-trading-lab/actions/workflows/tests.yml).
   The first green run was `38777456963` (2026-10-15); the suite had never
@@ -30,15 +30,15 @@ A new AI Agent must read this file **before** doing anything else, then
 - **Verified platforms:** Debian 13 (system packages, Python 3.13.5) and
   **Windows 10** (pip/PyPI, Python 3.14.7, 2026-10-01 — clean install, the
   window opens, identical numbers, `ccxt` reaches the network). The Windows
-  path was re-measured on 2026-10-31 with **Python 3.12**: 1228/2, after two
+  path was re-measured on 2026-10-31 with **Python 3.12**: 1240/2, after two
   platform assumptions in the suite were fixed (see §5.2 item 10).
 - **macOS — deferred by the maintainer's decision, not a pending task.** It
   comes last, once the program works on Linux and Windows. Do not spend a
   session on it and do not treat a macOS failure as a blocker. The steps are
   prepared in `README.md` and `docs/en/developers/venv-setup.md`; the
   manual `cross-platform` workflow can measure it when its turn arrives.
-- **Source:** 113 Python files under `src/crypto_trading_lab/`
-- **Tests:** 88 test modules under `tests/`
+- **Source:** 114 Python files under `src/crypto_trading_lab/`
+- **Tests:** 90 test modules under `tests/`
 - **Documentation:** `docs/en/beginners/` and
   `docs/en/developers/` (virtualenv guide in `venv-setup.md`, audit in
   `unwired-modules-audit.md`)
@@ -636,8 +636,8 @@ features the code did not ship. Concretely:
     one risk warning. `StrategyMetadata.category` survives the JSON round trip.
     Visible in `list-strategies`, in `list-strategies --explain ID` (identity
     before guide) and in the Backtesting Lab report. Chapter 33 is `[~]` at 67
-    of 86 boxes; 33.3 (trading rules) remains, plus 33.8's seventh box and
-    33.5's two short-side boxes.
+    of 86 boxes; 33.8's seventh box and 33.5's two short-side boxes remained
+    open.
 
 19. ~~**Chapter 33.2 — market requirements.**~~ **DONE 2026-11-01** (same
     stage as items 11–18). `market_requirements.py` declares the seven
@@ -656,10 +656,22 @@ features the code did not ship. Concretely:
     instances. Visible in `list-strategies --explain ID` (a Market requirements
     block between identity and guide), the Backtesting Lab report, and
     `docs/en/beginners/strategy-guides.md`. All seven boxes ticked; chapter 33
-    is `[~]` at 74 of 86. **Next task:** chapter 33.3 (trading rules — entry,
-    exit, invalidation, stops, take-profit, trailing stops, cooldown, time
-    restrictions, position sizing) and, still open, 33.8's seventh box
-    (`prefer_simpler` has no caller) and 33.5's two short-side boxes.
+    is `[~]` at 83 of 86.
+
+20. ~~**Chapter 33.3 — trading rules.**~~ **DONE 2026-11-01** (same stage as
+    items 11–19). `trading_rules.py` declares the nine chapter-33.3 fields for
+    all six built-ins as one frozen `TradingRules` record (entry rule, exit
+    rule, invalidation, stop loss, take profit, trailing stop, cooldown, time
+    restrictions and the shared position-sizing rule). Built-ins honestly
+    declare "None — the engine never adds a stop of its own", because the
+    engine's only position-exit is the strategy's own exit signal; a custom
+    `RuleStrategy` can add real stops, validated by `RuleStrategySpec` to (0,
+    1) at construction. `validate_for_run` warns when a rule has neither an
+    exit nor a stop. Visible in `list-strategies --explain ID` (a Trading rules
+    block), the Backtesting Lab report, and `docs/en/beginners/strategy-guides.md`.
+    All nine boxes ticked; chapter 33 is `[~]` at 83 of 86. **Next task:**
+    chapter 33.8's seventh box (`prefer_simpler` has no caller/screen that
+    compares two strategies) and 33.5's two short-side boxes.
 
 Anything in `ROADMAP.md` marked `[ ]` or `[~]` is fair game. The roadmap is
 the specification; this list is only the recommended order.
@@ -685,7 +697,7 @@ git submodule update --init external/freqtrade
 # 2. Verify the environment:
 python3 --version            # ≥ 3.11 expected (3.13 on record)
 python3 -c "import PyQt6, pyqtgraph, sqlalchemy, platformdirs; print('deps OK')"
-QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1228 passed, 2 skipped expected
+QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1240 passed, 2 skipped expected
 
 # 3. Read in this order:
 #    1. AGENT-HANDOFF.md (this file) — state and next steps
@@ -699,4 +711,4 @@ If the test count differs, stop and report it before changing anything.
 
 ---
 
-*Handoff updated 2026-10-31. Baseline: 1228 passed, 2 skipped.*
+*Handoff updated 2026-10-31. Baseline: 1240 passed, 2 skipped.*

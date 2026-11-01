@@ -25,7 +25,7 @@
   ```bash
   QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q
   ```
-  Baseline: **1228 passed, 2 skipped**, exit code 0. Check the exit code,
+  Baseline: **1240 passed, 2 skipped**, exit code 0. Check the exit code,
   not only the printed count.
 - **Safety.** No real credentials; no `eval()`/`exec()`; real trading
   stays disabled; strategies never bypass the risk manager; secrets are

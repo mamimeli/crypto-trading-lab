@@ -22,6 +22,10 @@ from crypto_trading_lab.market_requirements import (
     market_requirements_for,
     render_market_requirements,
 )
+from crypto_trading_lab.trading_rules import (
+    trading_rules_for,
+    render_trading_rules,
+)
 
 #: How each doctor status is shown.
 _STATUS_LABEL = {
@@ -162,6 +166,13 @@ def _explain_strategies(explain: str, strategies: Any) -> int:
             # reader knows when a result does not apply to their market.
             print("Market requirements (chapter 33.2):")
             print(render_market_requirements(requirements))
+            print()
+        rules = trading_rules_for(strategy_id)
+        if rules is not None:
+            # Chapter 33.3: the formal contract — what it may do once it is
+            # in a position — before the plain-language guide.
+            print("Trading rules (chapter 33.3):")
+            print(render_trading_rules(rules))
             print()
         print(render(guide))
         explained += 1

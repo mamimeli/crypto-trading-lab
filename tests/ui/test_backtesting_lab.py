@@ -114,6 +114,15 @@ def test_the_report_states_the_market_requirements(lab):
     assert "Minimum historical data (default configuration):" in text
 
 
+def test_the_report_states_the_trading_rules(lab):
+    # Chapter 33.3: the formal contract reaches the GUI too.
+    text = lab.run_and_display()
+    assert "Trading rules (chapter 33.3):" in text
+    assert "Stop-loss:" in text
+    assert "Take-profit:" in text
+    assert "Position sizing:" in text
+
+
 def test_beginner_explanation_and_honesty(lab):
     text = lab.run_and_display()
     # 37.10 + 40.8 mandatory explanations and disclaimers.

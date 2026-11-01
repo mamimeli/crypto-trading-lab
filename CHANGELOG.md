@@ -88,6 +88,26 @@ per-chapter state of the specification, see [`ROADMAP.md`](ROADMAP.md).
   Lab report, and `docs/en/beginners/strategy-guides.md`. All seven boxes
   ticked; chapter 33 is at 74 of 86.
 
+- **Chapter 33.3 (trading rules) closed — a strategy states its contract in
+  one place.** New `trading_rules.py` holds one frozen `TradingRules` per
+  built-in strategy with the nine fields the chapter asks for: entry rule,
+  exit rule, invalidation, stop loss, take profit, trailing stop, cooldown,
+  time restrictions and the shared position-sizing rule. `RULES` is the single
+  source of truth the CLI (`list-strategies --explain ID`) and the Backtesting
+  Lab report read; the position-sizing rule is a shared engine constant
+  (fixed fraction of cash, next-open fill, one position, no leverage,
+  risk-manager-gated) rather than six near-identical paragraphs. Built-in
+  strategies honestly declare "None — the engine never adds a stop of its own":
+  the engine's only position-exit is the strategy's own exit signal, so any
+  stop a user imagines exists is one they must encode as a rule. A custom
+  `RuleStrategy` can add real stops, and `RuleStrategySpec` validates the stop
+  and take-profit fractions to the open interval (0, 1) at construction, with
+  `RuleError` on the out-of-range values — `validate_for_run` warns when a rule
+  has neither an exit nor a stop so a run cannot silently do nothing. The stop
+  caveat (stops are checked on candle closes, so a wick passes through unseen)
+  is surfaced next to every stop declaration. All nine boxes ticked; chapter 33
+  is at 83 of 86.
+
 - **Chapter 33.8 (research warnings) — the caveats that travel with the
   number.** New `research_warnings.py` holds the chapter's seven statements
   as constants, because a warning paraphrased differently on every screen is

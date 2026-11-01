@@ -70,6 +70,34 @@ in the Backtesting Lab report, generated from `market_requirements.py`.
 
 ---
 
+## The formal contract of each strategy (chapter 33.3)
+
+Before the plain-language questions, the formal trading rules — what each
+strategy is allowed to do once it holds a position. Every built-in is
+long-only spot with **no stop, no take-profit and no trailing stop of its
+own**: the engine never adds one, so a position stays open until the
+strategy's own sell signal. Position sizing is the engine's shared rule
+(fixed fraction of available cash, sized at the next open, one position at a
+time, no leverage, every order gated by the risk manager). The chapter 33.3
+declaration is generated from `trading_rules.py`.
+
+| Strategy | Entry | Exit | Cooldown | Stop / take-profit |
+| --- | --- | --- | --- | --- |
+| `ma_crossover` | fast SMA above slow SMA | fast SMA below slow SMA | none | none / none |
+| `rsi` | RSI crosses down through oversold (filters optional) | RSI crosses up through overbought | optional N candles after exit | none / none |
+| `breakout` | close above rolling high | close below rolling low | none | none / none |
+| `bollinger` | close crosses down through lower band | close returns to middle band | none | none / none |
+| `buy_and_hold` | first fillable candle | never (by itself) | none | none / none |
+| `null_strategy` | never trades | never trades | none | none / none |
+
+A rule you build in the Strategy Builder can declare its own stop-loss and
+take-profit as fractions of the entry price — but they are checked on
+candle **closes**, not on intrabar extremes, so a fast wick can pass through
+them unseen. That is the single most common way a rule backtest looks better
+than the live account would, so it is stated here on purpose.
+
+---
+
 ## Questions 6 and 7, answered once
 
 Sizing and stops belong to the **engine**, not to any one strategy.

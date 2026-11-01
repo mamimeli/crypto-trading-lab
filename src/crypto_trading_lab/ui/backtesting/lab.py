@@ -71,6 +71,10 @@ from crypto_trading_lab.market_requirements import (
     market_requirements_for,
     render_market_requirements,
 )
+from crypto_trading_lab.trading_rules import (
+    trading_rules_for,
+    render_trading_rules,
+)
 
 STRATEGY_SMA = "ma_crossover"
 STRATEGY_BUY_HOLD = "buy_and_hold"
@@ -902,6 +906,13 @@ class BacktestingLabWidget(QWidget):
             lines.extend(
                 render_market_requirements(requirements).splitlines()
             )
+            lines.append("")
+        # Chapter 33.3: the formal contract — what it may do once in a
+        # position — before the plain-language guide.
+        rules = trading_rules_for(strategy_id)
+        if rules is not None:
+            lines.append(self.tr("Trading rules (chapter 33.3):"))
+            lines.extend(render_trading_rules(rules).splitlines())
             lines.append("")
         lines.extend([render_guide(guide), ""])
         return lines

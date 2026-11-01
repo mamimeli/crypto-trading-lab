@@ -139,7 +139,7 @@ task order is in `AGENT-HANDOFF.md` §5.2.
 | 30 | [~] | 14 | 11 | No | Market precision and exchange rules |
 | 31 | [~] | 23 | 6 | No | Technical indicators |
 | 32 | [~] | 18 | 16 | No | Financial charts |
-| 33 | [~] | 74 | 12 | No | Strategies |
+| 33 | [~] | 83 | 3 | No | Strategies |
 | 34 | [ ] | 0 | 24 | No | Visual strategy builder |
 | 35 | [~] | 9 | 3 | Yes | Strategy complexity control |
 | 36 | [~] | 4 | 15 | No | Strategy registry |
@@ -2168,17 +2168,39 @@ use. Documented in `docs/en/developers/strategy-identity.md`.
 * [x] Warm-up period.
 * [x] Minimum amount of historical data required.
 
+**Implemented 2026-11-01 (7 of 7).** `market_requirements.py` holds one frozen
+`MarketRequirements` per built-in strategy with the seven declarations the
+chapter asks for: compatible markets, supported asset types, required
+timeframe, required market-data fields, required indicators, the warm-up (the
+strategy's own `warmup_candles`, not duplicated here) and the minimum historical
+data. `validate_for_run` refuses a run a strategy cannot use, and the deeper
+check that `indicator_values()` actually returns the declared indicators lives
+in `tests/test_strategy_market_requirements.py` on real instances, because
+verifying it inside validation would touch the strategy's streaming state
+before the real run. Documented in `docs/en/developers/market-requirements.md`.
+
 ### 33.3 Trading rules
 
-* [ ] Entry conditions.
-* [ ] Exit conditions.
-* [ ] Invalidation conditions.
-* [ ] Stop-loss rules.
-* [ ] Take-profit rules.
-* [ ] Trailing-stop rules where applicable.
-* [ ] Cooldown rules.
-* [ ] Time-based restrictions where applicable.
-* [ ] Position-sizing rules (subject to the risk manager; see Chapter 58).
+* [x] Entry conditions.
+* [x] Exit conditions.
+* [x] Invalidation conditions.
+* [x] Stop-loss rules.
+* [x] Take-profit rules.
+* [x] Trailing-stop rules where applicable.
+* [x] Cooldown rules.
+* [x] Time-based restrictions where applicable.
+* [x] Position-sizing rules (subject to the risk manager; see Chapter 58).
+
+**Implemented 2026-11-01 (9 of 9).** `trading_rules.py` holds one frozen
+`TradingRules` per built-in strategy with the nine fields the chapter asks for:
+entry rule, exit rule, invalidation, stop loss, take profit, trailing stop,
+cooldown, time restrictions and the shared position-sizing rule. Built-in
+strategies honestly declare "None — the engine never adds a stop of its own",
+because the engine's only position-exit is the strategy's own exit signal; a
+custom `RuleStrategy` can add real stops, and `RuleStrategySpec` validates the
+stop and take-profit fractions to (0, 1) at construction. `validate_for_run`
+warns when a rule has neither an exit nor a stop. Documented in
+`docs/en/developers/trading-rules.md`.
 
 ### 33.4 Parameters
 

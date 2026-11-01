@@ -201,6 +201,11 @@ def test_list_strategies_explain_answers_the_beginner_questions(
     assert "Market requirements (chapter 33.2):" in output
     assert "Supported asset types: spot" in output
     assert "Required market-data fields:" in output
+    # Chapter 33.3: the formal contract, between the market needs and the
+    # plain-language guide.
+    assert "Trading rules (chapter 33.3):" in output
+    assert "Stop-loss:" in output
+    assert "Position sizing:" in output
     assert output.index("Market requirements (chapter 33.2):") < output.index(
         "What it tries to do:"
     )

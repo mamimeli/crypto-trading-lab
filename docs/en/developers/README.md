@@ -40,6 +40,7 @@ If you are new, read in this order:
 | [`strategy-validation.md`](strategy-validation.md) | work on chapter 33.7 — what is checked before a run, and why errors and warnings differ |
 | [`strategy-identity.md`](strategy-identity.md) | work on chapter 33.1 — the nine facts every strategy declares, and why the registry reads them instead of inventing them |
 | [`market-requirements.md`](market-requirements.md) | work on chapter 33.2 — the seven market/data declarations and how the validation gate reads them |
+| [`trading-rules.md`](trading-rules.md) | work on chapter 33.3 — the trading contract each strategy declares and where the engine enforces it |
 | [`architecture-boundaries.md`](architecture-boundaries.md) | work on chapter 33.6 — how the strategy/risk/execution boundary is enforced |
 | [`afml-techniques.md`](afml-techniques.md) | implement anything from chapters 47–50 (read it **before** coding) |
 | [`reference-projects.md`](reference-projects.md) | study the eight vendored reference projects and what was learned |
