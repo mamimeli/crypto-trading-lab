@@ -14,6 +14,25 @@ per-chapter state of the specification, see [`ROADMAP.md`](ROADMAP.md).
 
 ### Added
 
+- **Chapter 33.5 (signal generation) closed — the decision, written down.**
+  New `signals.py`: `SignalType` is the chapter's vocabulary (`enter_long`,
+  `exit_long`, `enter_short`, `exit_short`, `hold`, `no_signal`) and `Signal`
+  is a frozen record carrying timestamp (naive is rejected), strategy id and
+  version, market, timeframe, type, the indicator values the decision was
+  taken on, and the chapter 33.4 parameter signature. `run_backtest()` now
+  writes one record per candle into `BacktestResult.signals`, so the two
+  things the old `None` threw away are kept: **hold vs no signal** (in a
+  position and silent is not the same as flat and silent) and **the decision
+  vs what the engine could act on** (`actionable` is false for a BUY while
+  already long, since the MVP engine is long-only spot). Every built-in
+  strategy gained `indicator_values()` and a `ClassVar` `identifier` equal to
+  its registry id — `Strategy.name` is a sentence that changes with the
+  parameters, so it cannot be the identifier — and a registry test keeps the
+  two from drifting apart. `enter_short`/`exit_short` exist in the vocabulary
+  but nothing emits them, so their roadmap boxes stay open on purpose.
+  Documented in `docs/en/developers/signal-records.md`; 12 boxes ticked in
+  chapter 33.5.
+
 - **Chapter 33.4 (parameters) closed — a contract instead of a bag of
   kwargs.** New `strategy_parameters.py`: `ParameterSpec` (name, kind,
   default, bounds, allowed values, description, rule text), `ParameterSchema`

@@ -26,6 +26,23 @@ def test_registry_create_instance(tmp_path):
     assert strategy.slow == 15
 
 
+def test_every_builtin_strategy_knows_its_registry_id(tmp_path):
+    """Chapter 33.5 stamps the identifier on every signal.
+
+    ``Strategy.name`` is a sentence that changes with the parameters
+    ("SMA(5)xSMA(15) crossover"), so it cannot be the identifier. Each
+    built-in declares its own, and this test keeps the declaration and the
+    registry entry from drifting apart.
+    """
+    registry = StrategyRegistry(storage_path=tmp_path)
+
+    for metadata in registry.list_strategies():
+        if metadata.author != "Built-in":
+            continue
+        instance = registry.create_instance(metadata.strategy_id)
+        assert instance.identifier == metadata.strategy_id
+
+
 def test_constructing_a_registry_does_not_write_to_disk(tmp_path, monkeypatch):
     """Building a registry is read-only, whatever the working directory is.
 

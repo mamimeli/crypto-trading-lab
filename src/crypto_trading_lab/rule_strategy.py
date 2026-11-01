@@ -316,6 +316,21 @@ class RuleStrategy:
             return OrderSide.BUY
         return None
 
+    def indicator_values(self, index: int, candles: Sequence[Candle]) -> dict:
+        """Every operand the rule reads, at this candle (chapter 33.5).
+
+        A rule is data, so the signal record can name exactly what the
+        decision looked at: ``{"close": 100, "sma(20)": 99.4}``.
+        """
+        values: dict[str, object] = {}
+        for condition in tuple(self.spec.entry) + tuple(self.spec.exit):
+            for operand in (condition.left, condition.right):
+                key = validate_operand(operand)
+                if operand_indicator(key) is None and key not in _PRICE_FIELDS:
+                    continue  # a numeric constant is not an indicator
+                values[key] = self._value(key, index, candles)
+        return values
+
 
 #: Builder operator → rule-language operator.
 _BUILDER_OPERATORS = {

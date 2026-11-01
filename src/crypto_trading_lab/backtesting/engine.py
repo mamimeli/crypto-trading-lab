@@ -28,7 +28,9 @@ import enum
 import random
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Protocol, Sequence
+from typing import ClassVar, Protocol, Sequence
+
+from crypto_trading_lab.signals import Signal, signal_from_decision
 
 from collections import deque
 
@@ -115,6 +117,9 @@ class BacktestConfig:
     #: ``strategy@version(name=value, ...)``. Recorded so a result can always
     #: be traced back to the configuration that made it.
     strategy_parameters: str = ""
+    #: Chapter 33.5: the strategy identifier the signals are stamped with.
+    #: Empty means the caller built the strategy directly and did not say.
+    strategy_id: str = ""
 
     def execution_realism_name(self) -> str:
         """Which execution model this run used (chapter 56.2)."""
@@ -179,6 +184,14 @@ class Strategy(Protocol):
 
     name: str
 
+    #: The registry id (``ma_crossover``), when the strategy has one. It is
+    #: deliberately separate from ``name``: ``name`` is the sentence shown to
+    #: a user ("SMA(10)xSMA(30) crossover") and changes with the parameters,
+    #: while the identifier is what chapter 33.5 stamps on every signal and
+    #: must not. Strategies that are not registered simply do not declare it,
+    #: and the engine falls back to ``name``.
+    identifier: ClassVar[str]
+
     #: Candles the strategy needs before it can emit its first signal.
     #: A strategy that cannot state this reports 0 and gets no warm-up
     #: warning, which is honest: guessing a number would be worse than
@@ -200,6 +213,8 @@ class MACrossoverStrategy:
     Uses :class:`SMAStream` for O(1) incremental updates, so backtesting
     N candles is O(N) instead of O(N^2) (chapter 13).
     """
+
+    identifier: ClassVar[str] = "ma_crossover"
 
     fast: int = 10
     slow: int = 30
@@ -237,10 +252,19 @@ class MACrossoverStrategy:
                 return OrderSide.SELL
         return None
 
+    def indicator_values(self, index, candles):
+        """The two averages behind the crossover (chapter 33.5)."""
+        return {
+            "sma_fast": self._fast_stream.value,
+            "sma_slow": self._slow_stream.value,
+        }
+
 
 @dataclass
 class BuyAndHoldStrategy:
     """Buy on the first fillable candle and hold (benchmark, ch. 33.5)."""
+
+    identifier: ClassVar[str] = "buy_and_hold"
 
     version: str = "1.0.0"  # strategy version (ROADMAP 37.9)
 
@@ -260,6 +284,8 @@ class BuyAndHoldStrategy:
 @dataclass
 class NullStrategy:
     """Never trades (chapter 33, strategy 6 — the honest baseline)."""
+
+    identifier: ClassVar[str] = "null_strategy"
 
     version: str = "1.0.0"  # strategy version (ROADMAP 37.9)
 
@@ -307,6 +333,10 @@ class BacktestResult:
     #: Chapter 40 needs it to annualize: a year is 12 monthly candles, not
     #: 365 of them. Empty means "not recorded", and the metrics say so.
     interval: str = ""
+    #: Every decision of the run, in candle order (chapter 33.5). One record
+    #: per candle, including hold and no-signal ones: a log that only kept
+    #: the trades could not answer "why didn't it trade here?".
+    signals: tuple["Signal", ...] = ()
 
     @property
     def net_profit(self) -> Decimal:
@@ -455,6 +485,26 @@ def _reported_costs(
     return Decimal(0), (price - reference).copy_abs() * quantity
 
 
+def _indicator_values(
+    strategy: Strategy, index: int, candles: Sequence[Candle]
+) -> dict[str, Decimal]:
+    """What the strategy was looking at, when it chooses to say (ch. 33.5).
+
+    A strategy exposes ``indicator_values(index, candles)`` when its decision
+    depends on something worth recording; buy-and-hold and the null strategy
+    read nothing, so they simply do not implement it and the record stays
+    empty instead of inventing numbers.
+    """
+    reader = getattr(strategy, "indicator_values", None)
+    if reader is None:
+        return {}
+    return {
+        str(name): value
+        for name, value in (reader(index, candles) or {}).items()
+        if value is not None
+    }
+
+
 def _parameter_snapshot(strategy: Strategy) -> dict[str, object]:
     """The declared parameters of a dataclass strategy, as they are now.
 
@@ -521,6 +571,7 @@ def run_backtest(
     trades: list[TradeRecord] = []
     equity_curve: list[Decimal] = []
     exposure_curve: list[bool] = []
+    signals: list[Signal] = []
     order_count = 0
     rejected_orders = 0
     partial_fills = 0
@@ -534,6 +585,18 @@ def run_backtest(
     pending_signal: OrderSide | None = None  # filled at NEXT open
 
     parameter_snapshot = _parameter_snapshot(strategy)
+    # Chapter 33.5: every signal carries the strategy that produced it. The
+    # caller may name it (the application knows the registry id); otherwise the
+    # strategy's own ``identifier`` is used, and ``name`` only as a last resort,
+    # so the research, optimization and walk-forward paths do not stamp their
+    # records "unknown".
+    signal_strategy_id = (
+        config.strategy_id
+        or getattr(strategy, "identifier", "")
+        or getattr(strategy, "name", "")
+        or "unknown"
+    )
+    signal_strategy_version = str(getattr(strategy, "version", "") or "unknown")
 
     for index in range(len(candles)):
         current = candles[index]
@@ -671,6 +734,18 @@ def run_backtest(
             # Long-only spot MVP: SELL closes, never shorts.
             pending_signal = signal
 
+        signals.append(
+            signal_from_decision(
+                candle=current,
+                side=signal,
+                in_position=position > 0,
+                strategy_id=signal_strategy_id,
+                strategy_version=signal_strategy_version,
+                parameters=config.strategy_parameters,
+                indicators=_indicator_values(strategy, index, candles),
+            )
+        )
+
     final_equity = cash + position * candles[-1].close
 
     # Chapter 33.4: a strategy must not change its own parameters mid-run.
@@ -693,6 +768,7 @@ def run_backtest(
         exposure_curve=tuple(exposure_curve),
         rejected_orders=rejected_orders,
         partial_fills=partial_fills,
+        signals=tuple(signals),
         strategy_version=str(getattr(strategy, "version", "unknown")),
         # Chapter 53 (experiment tracking) does not exist yet, so
         # datasets are honestly recorded as unversioned.
@@ -715,6 +791,8 @@ class RSIStrategy:
     overbought level. Signals are emitted at the close and filled at the
     next open, like every other strategy in this engine.
     """
+
+    identifier: ClassVar[str] = "rsi"
 
     period: int = 14
     oversold: int = 30
@@ -795,6 +873,11 @@ class RSIStrategy:
             return OrderSide.SELL
         return None
 
+    def indicator_values(self, index, candles):
+        """The RSI reading the decision was taken on (chapter 33.5)."""
+        values = self._series(candles)
+        return {"rsi": values[index] if index < len(values) else None}
+
 @dataclass
 class RollingHighLowBreakoutStrategy:
     """Rolling high/low breakout (chapter 33, strategy 3).
@@ -806,6 +889,8 @@ class RollingHighLowBreakoutStrategy:
     signal.
     """
 
+    identifier: ClassVar[str] = "breakout"
+
     period: int = 20
     version: str = "1.0.0"
 
@@ -814,6 +899,10 @@ class RollingHighLowBreakoutStrategy:
             raise ValueError("period must be at least 2")
         self._highs: deque = deque(maxlen=self.period)
         self._lows: deque = deque(maxlen=self.period)
+        # The window the last decision was taken on, kept for the signal
+        # record: the current candle joins the deque *after* the comparison,
+        # so recomputing afterwards would report a different range.
+        self._last_window: tuple[Decimal, Decimal] | None = None
 
     @property
     def name(self) -> str:
@@ -831,6 +920,7 @@ class RollingHighLowBreakoutStrategy:
             return None
         rolling_high = max(self._highs)
         rolling_low = min(self._lows)
+        self._last_window = (rolling_high, rolling_low)
         if candle.close > rolling_high:
             self._highs.append(candle.high)
             self._lows.append(candle.low)
@@ -843,6 +933,13 @@ class RollingHighLowBreakoutStrategy:
         self._lows.append(candle.low)
         return None
 
+    def indicator_values(self, index, candles):
+        """The range the close had to break (chapter 33.5)."""
+        if self._last_window is None:
+            return {}
+        high, low = self._last_window
+        return {"rolling_high": high, "rolling_low": low}
+
 
 @dataclass
 class BollingerBandsMeanReversionStrategy:
@@ -853,6 +950,8 @@ class BollingerBandsMeanReversionStrategy:
     (the mean). An educational mean-reversion example; the engine handles
     entry and exit from the BUY/SELL signals.
     """
+
+    identifier: ClassVar[str] = "bollinger"
 
     period: int = 20
     k: int = 2
@@ -878,12 +977,7 @@ class BollingerBandsMeanReversionStrategy:
         self._closes.append(close)
         if len(self._closes) < self.period:
             return None
-        n = Decimal(self.period)
-        mean = sum(self._closes, Decimal(0)) / n
-        variance = sum((c * c for c in self._closes), Decimal(0)) / n - mean * mean
-        if variance < 0:
-            variance = Decimal(0)
-        stdev = variance.sqrt()
+        mean, stdev = self._bands()
         lower = mean - Decimal(self.k) * stdev
         middle = mean
         if index >= 1:
@@ -895,4 +989,21 @@ class BollingerBandsMeanReversionStrategy:
         elif close >= middle:
             return OrderSide.SELL
         return None
+
+    def _bands(self) -> tuple[Decimal, Decimal]:
+        """The mean and standard deviation of the current window."""
+        n = Decimal(self.period)
+        mean = sum(self._closes, Decimal(0)) / n
+        variance = sum((c * c for c in self._closes), Decimal(0)) / n - mean * mean
+        if variance < 0:
+            variance = Decimal(0)
+        return mean, variance.sqrt()
+
+    def indicator_values(self, index, candles):
+        """The bands the close had to reach (chapter 33.5)."""
+        if len(self._closes) < self.period:
+            return {}
+        mean, stdev = self._bands()
+        offset = Decimal(self.k) * stdev
+        return {"middle": mean, "upper": mean + offset, "lower": mean - offset}
 

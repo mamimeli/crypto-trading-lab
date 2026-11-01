@@ -15,13 +15,14 @@ A new AI Agent must read this file **before** doing anything else, then
 - **Repository:** `https://github.com/wachin/crypto-trading-lab`
   (branch `main`)
 - **State verified at commit:** the commit that carries this file.
-- **Tests:** 1052 passed, 2 skipped, **exit code 0** —
+- **Tests:** 1071 passed, 2 skipped, **exit code 0** —
   `QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q`
   (The exit code matters: the suite used to segfault while the interpreter
   shut down, so it printed "passed" and still failed the build. See §5.)
-- **CI:** `tests` is **green on `main`**, but **not yet at 1052**: the last
+- **CI:** `tests` is **green on `main`**, but **not yet at 1071**: the last
   observed green run reports 990/2 on `ubuntu-24.04` with pip and carries
-  **no annotations**. The chapter 35 change adds 25 tests and has only been
+  **no annotations**. The chapter 35, 33.4 and 33.5 changes add 81 tests in
+  total (990 → 1071) and have only been
   measured locally (Windows, Python 3.12). The history is at
   [actions/workflows/tests.yml](https://github.com/wachin/crypto-trading-lab/actions/workflows/tests.yml).
   The first green run was `38777456963` (2026-10-15); the suite had never
@@ -29,7 +30,7 @@ A new AI Agent must read this file **before** doing anything else, then
 - **Verified platforms:** Debian 13 (system packages, Python 3.13.5) and
   **Windows 10** (pip/PyPI, Python 3.14.7, 2026-10-01 — clean install, the
   window opens, identical numbers, `ccxt` reaches the network). The Windows
-  path was re-measured on 2026-10-31 with **Python 3.12**: 1052/2, after two
+  path was re-measured on 2026-10-31 with **Python 3.12**: 1071/2, after two
   platform assumptions in the suite were fixed (see §5.2 item 10).
 - **macOS — deferred by the maintainer's decision, not a pending task.** It
   comes last, once the program works on Linux and Windows. Do not spend a
@@ -77,7 +78,11 @@ A new AI Agent must read this file **before** doing anything else, then
   filters, conditions, grid size and model size, and qualification shows
   them instead of a boolean. Chapter 33.4 (parameters) closed the same day
   (§5.2 item 12): parameters are a declared, validated contract and the run
-  records which values produced it.
+  records which values produced it. Chapter 33.5 (signals) closed the same
+  day (§5.2 item 13): every decision is now a frozen `Signal` record with the
+  strategy id and version, market, timeframe, type, the indicator values it
+  was taken on and the parameter signature — and hold is no longer the same
+  value as no signal.
   **Real trading remains disabled by default.**
 
 ### What changed on 2026-09-19 (direction correction + Fase A/B)
@@ -525,6 +530,26 @@ features the code did not ship. Concretely:
     id and version, market, timeframe, type, indicator values, parameter
     signature) — it is the natural follow-up because `ParameterSet.signature()`
     is exactly the parameter-set identifier the signal must carry.
+13. ~~**Chapter 33.5 — signal generation.**~~ **DONE 2026-10-31** (same stage
+    as items 11 and 12). `signals.py` holds the chapter's vocabulary
+    (`SignalType`) and a frozen `Signal` record; `run_backtest()` writes one
+    per candle into `BacktestResult.signals`, stamped with the strategy id and
+    version, the market and timeframe from the candle, the type, the indicator
+    values the decision used (`indicator_values()` on every built-in) and the
+    chapter 33.4 parameter signature. Two distinctions are now kept instead of
+    collapsed: **hold vs no signal**, and **the decision vs what the engine
+    could act on** (`actionable` is false for a BUY while already long).
+    Built-ins also declare a `ClassVar` `identifier` equal to their registry id,
+    because `Strategy.name` is a parameterised sentence and cannot be the
+    identifier; a registry test keeps the two in sync.
+    `enter_short`/`exit_short` exist in the vocabulary but **nothing emits
+    them** (long-only spot), so those two boxes stay open on purpose. Chapter
+    33.5 is 12 of 14 boxes; chapter 33 overall is `[~]` with 33.1–33.3 and
+    33.6–33.9 still open. Docs: `docs/en/developers/signal-records.md`.
+    **Next task:** chapter 33.6 (the mandatory signal → risk → order flow,
+    enforced rather than described) — or 33.7 (strategy validation before a run:
+    configuration, indicators, timeframe, warm-up, market compatibility), which
+    is the natural neighbour of what was just built.
 
 Anything in `ROADMAP.md` marked `[ ]` or `[~]` is fair game. The roadmap is
 the specification; this list is only the recommended order.
@@ -550,7 +575,7 @@ git submodule update --init external/freqtrade
 # 2. Verify the environment:
 python3 --version            # ≥ 3.11 expected (3.13 on record)
 python3 -c "import PyQt6, pyqtgraph, sqlalchemy, platformdirs; print('deps OK')"
-QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1052 passed, 2 skipped expected
+QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1071 passed, 2 skipped expected
 
 # 3. Read in this order:
 #    1. AGENT-HANDOFF.md (this file) — state and next steps
@@ -564,4 +589,4 @@ If the test count differs, stop and report it before changing anything.
 
 ---
 
-*Handoff updated 2026-10-31. Baseline: 1052 passed, 2 skipped.*
+*Handoff updated 2026-10-31. Baseline: 1071 passed, 2 skipped.*

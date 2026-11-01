@@ -549,6 +549,7 @@ def run_backtest_file(
         execution_config=execution_config,
         execution_seed=execution_seed,
         strategy_parameters=parameters.signature(),
+        strategy_id=strategy_id,
     )
 
     symbol = payload.get("symbol")

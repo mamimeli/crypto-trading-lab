@@ -139,7 +139,7 @@ task order is in `AGENT-HANDOFF.md` §5.2.
 | 30 | [~] | 14 | 11 | No | Market precision and exchange rules |
 | 31 | [~] | 23 | 6 | No | Technical indicators |
 | 32 | [~] | 18 | 16 | No | Financial charts |
-| 33 | [~] | 17 | 69 | No | Strategies |
+| 33 | [~] | 29 | 57 | No | Strategies |
 | 34 | [ ] | 0 | 24 | No | Visual strategy builder |
 | 35 | [~] | 9 | 3 | Yes | Strategy complexity control |
 | 36 | [~] | 4 | 15 | No | Strategy registry |
@@ -2198,23 +2198,46 @@ refusing to load the registry. Documented in
 
 Strategies must generate explicit signals such as:
 
-* [ ] Enter long.
-* [ ] Exit long.
+* [x] Enter long.
+* [x] Exit long.
 * [ ] Enter short where supported.
 * [ ] Exit short where supported.
-* [ ] Hold.
-* [ ] No signal.
+* [x] Hold.
+* [x] No signal.
 
 Signals must include:
 
-* [ ] Timestamp.
-* [ ] Strategy identifier.
-* [ ] Strategy version.
-* [ ] Market.
-* [ ] Timeframe.
-* [ ] Signal type.
-* [ ] Relevant indicator values.
-* [ ] Strategy parameters or parameter-set identifier.
+* [x] Timestamp.
+* [x] Strategy identifier.
+* [x] Strategy version.
+* [x] Market.
+* [x] Timeframe.
+* [x] Signal type.
+* [x] Relevant indicator values.
+* [x] Strategy parameters or parameter-set identifier.
+
+**Implemented 2026-10-31.** `signals.py` holds the vocabulary
+(`SignalType`) and the record (`Signal`, frozen). The engine now writes one
+record per candle into `BacktestResult.signals`, stamped with the strategy
+id and version, the market and timeframe taken from the candle, the type,
+the indicator values the decision was taken on, and the chapter 33.4
+parameter signature (`ma_crossover@1.0.0(fast=5, slow=20)`) — the
+parameter-set identifier, not a second copy of the values.
+
+Two distinctions the record keeps instead of collapsing them:
+**hold vs no signal** (`None` from a strategy in a position is *hold*;
+`None` flat is *no signal*), and **the decision vs what the engine could
+act on** (`actionable` is false for a BUY while already long, because the
+MVP engine is long-only spot). Indicator values come from each strategy's
+`indicator_values()`, so a record can be re-read without re-running the
+strategy.
+
+`enter_short`/`exit_short` stay **unticked on purpose**: the names exist in
+the vocabulary and are rejected by `Signal` if mistyped, but no strategy can
+emit them because the engine has no short side yet. Adding the enum member
+is not the feature the chapter asks for ("where supported"); the box opens
+the day a short-capable engine does. Documented in
+`docs/en/developers/signal-records.md`.
 
 ### 33.6 Mandatory architecture
 
