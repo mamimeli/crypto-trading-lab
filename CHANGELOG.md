@@ -467,6 +467,29 @@ per-chapter state of the specification, see [`ROADMAP.md`](ROADMAP.md).
   installed, so the chapter-41 export test runs instead of skipping).
 
 ### Fixed
+- **The suite was green on Debian and red on Windows (990 passed vs 988
+  passed, 2 failed).** Two platform assumptions, both now removed — the
+  second one hid in two tests.
+  `tools/check_external_links.py` (and its sibling `check_doc_links.py`)
+  sorted Markdown files by `Path`, and Windows compares paths
+  case-insensitively, so the report listed `docs/guide.md` before
+  `README.md` where Linux lists them the other way round; both now sort by
+  the POSIX relative path, which reads the same everywhere.
+  `test_renewal_really_closes_and_reconnects` waited for a connection
+  renewal by polling 100 times with `asyncio.sleep(0.01)`, but the Windows
+  event-loop clock advances only every 15.6 ms, so those sleeps can all
+  return early and the loop finished before the 30 ms renewal interval had
+  elapsed — the test now waits on an event the socket factory sets, with a
+  5 s timeout, and still fails if renewal breaks (verified by running it
+  with `renewal_interval=3600`).
+  `test_stale_data_is_detected_without_waiting_for_a_message` had the same
+  defect one run later (it passed, then failed, with no code change in
+  between): it polled 50 times for the watchdog, and a polling loop that
+  finishes before the timer has ticked asserts the opposite of what it
+  means. It now waits on the "degraded" warning itself, same 5 s timeout.
+  The feed also measured the connection age with `time.time()`, which an
+  NTP correction can move backwards and so delay or skip a renewal; it now
+  uses `time.monotonic()`.
 - **`create_order` rejected every order it was given.** `_validate_order_request`
   accepted an optional `market`, but `create_order` never passed one, and
   the guard `if request.symbol != market.symbol if market else True:`

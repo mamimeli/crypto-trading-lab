@@ -85,10 +85,16 @@ def anchors_of(path: Path) -> set[str]:
 
 
 def markdown_files(root: Path) -> list[Path]:
+    # Sort by the POSIX relative path: Windows compares paths
+    # case-insensitively, so sorting ``Path`` objects orders the report
+    # differently there than on Linux.
     return sorted(
-        path
-        for path in root.rglob("*.md")
-        if not (set(path.relative_to(root).parts) & SKIP_DIRS)
+        (
+            path
+            for path in root.rglob("*.md")
+            if not (set(path.relative_to(root).parts) & SKIP_DIRS)
+        ),
+        key=lambda path: path.relative_to(root).as_posix(),
     )
 
 

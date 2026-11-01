@@ -410,13 +410,33 @@ python -m pip install --upgrade pip
 pip install -r requirements-all.txt
 python -m pip install -e ".[dev,ccxt,pdf,credentials]"
 $env:QT_QPA_PLATFORM = "offscreen"
-python -m pytest tests/ -q
+python -m pytest tests/ -q   # → 990 passed, 2 skipped
 python -m crypto_trading_lab
 ```
 
 On Windows there is no `python3`: use `py -3` or `python`. Paths use `\`,
 the activation script lives in `.venv\Scripts\`, and the installed command
 is `.venv\Scripts\crypto-trading-lab.exe`.
+
+The window prints two lines that are not errors and need no action:
+
+```text
+QFontDatabase: Cannot find font directory ...\PyQt6\Qt6\lib\fonts.
+This plugin does not support propagateSizeHints()
+```
+
+Qt no longer ships fonts in its wheel, so it falls back to the system font
+index and says so; `propagateSizeHints()` is the offscreen platform plugin
+reporting a call it ignores. The window opens and behaves normally.
+
+`QT_QPA_PLATFORM=offscreen` is what the tests need: it runs Qt **without a
+display**, so the app starts but shows no window. Clear it in the same
+window before launching if you want to see the interface:
+
+```powershell
+Remove-Item Env:QT_QPA_PLATFORM
+python -m crypto_trading_lab
+```
 
 #### The activation error, and the safe fix
 

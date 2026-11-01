@@ -329,7 +329,9 @@ class BinanceWebSocketClient:
         self._renew_requested = False
         async with ws_cm as ws:
             self._active_ws = ws
-            self._connection_start_time = time.time()
+            # Monotonic, not wall clock: the renewal decision is an interval,
+            # and an NTP correction must not make it fire early or never.
+            self._connection_start_time = time.monotonic()
             self._stale_detector.touch()
             self._pending_subscriptions.clear()
             self._last_reconnect_time = time.time()
@@ -390,7 +392,7 @@ class BinanceWebSocketClient:
                 if (
                     started is not None
                     and not self._renew_requested
-                    and time.time() - started >= self._renewal_interval
+                    and time.monotonic() - started >= self._renewal_interval
                 ):
                     self._renew_requested = True
                     self._emit_warning(

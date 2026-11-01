@@ -363,13 +363,23 @@ def test_stale_data_is_detected_without_waiting_for_a_message():
         )
         client.subscribe("btcusdt@kline_1m")
         warnings = []
-        client.add_warning_callback(lambda state, msg: warnings.append(state))
+        degraded = asyncio.Event()
+
+        def on_warning(state, message):
+            warnings.append(state)
+            if state == "degraded":
+                degraded.set()
+
+        client.add_warning_callback(on_warning)
         await client.start()
         try:
-            for _ in range(50):
-                if client.state is ConnectionState.DEGRADED:
-                    break
-                await asyncio.sleep(0.01)
+            # Wait for the signal, not for a fixed number of 10 ms sleeps:
+            # the watchdog needs real elapsed time, and on Windows those
+            # sleeps can all return early.
+            try:
+                await asyncio.wait_for(degraded.wait(), timeout=5.0)
+            except asyncio.TimeoutError:
+                pytest.fail("the watchdog must report stale data on its own")
             assert client.state is ConnectionState.DEGRADED
             assert "degraded" in warnings
         finally:
@@ -383,10 +393,13 @@ def test_renewal_really_closes_and_reconnects():
 
     async def scenario():
         sockets = []
+        reopened = asyncio.Event()
 
         def factory(url):
             socket = ScriptedSocket([])
             sockets.append(socket)
+            if len(sockets) >= 2:
+                reopened.set()
             return socket
 
         client = BinanceWebSocketClient(
@@ -399,11 +412,14 @@ def test_renewal_really_closes_and_reconnects():
         client.subscribe("btcusdt@kline_1m")
         await client.start()
         try:
-            for _ in range(100):
-                if len(sockets) >= 2:
-                    break
-                await asyncio.sleep(0.01)
-            assert len(sockets) >= 2, "the feed must reopen the socket"
+            # Wait for the signal instead of polling: a loop of 100 sleeps of
+            # 10 ms is not a clock. On Windows the event loop clock advances
+            # only every 15.6 ms, so those sleeps can all return early and the
+            # loop finishes before the 30 ms renewal interval has elapsed.
+            try:
+                await asyncio.wait_for(reopened.wait(), timeout=5.0)
+            except asyncio.TimeoutError:
+                pytest.fail("the feed must reopen the socket")
             assert sockets[0].closed
         finally:
             await client.stop()

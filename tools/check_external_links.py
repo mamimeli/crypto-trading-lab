@@ -131,11 +131,20 @@ class LinkResult:
 
 
 def markdown_files(root: Path) -> list[Path]:
-    """Every Markdown file that is project documentation."""
+    """Every Markdown file that is project documentation.
+
+    The order is the plain POSIX relative path, not the order of ``Path``
+    objects: Windows compares paths case-insensitively, so sorting paths
+    would put ``docs/guide.md`` before ``README.md`` there and after it on
+    Linux. The report must read the same on every platform.
+    """
     return sorted(
-        path
-        for path in root.rglob("*.md")
-        if not (set(path.relative_to(root).parts) & SKIP_DIRS)
+        (
+            path
+            for path in root.rglob("*.md")
+            if not (set(path.relative_to(root).parts) & SKIP_DIRS)
+        ),
+        key=lambda path: path.relative_to(root).as_posix(),
     )
 
 
