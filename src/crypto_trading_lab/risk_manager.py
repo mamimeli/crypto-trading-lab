@@ -253,6 +253,31 @@ class RiskManager:
             modified_order=None,
         )
     
+    @classmethod
+    def permissive(cls) -> "RiskManager":
+        """A manager that approves everything a spot backtest can propose.
+
+        Used by the backtest engine when the caller supplies no limits: the
+        gate is still in the path (chapter 33.6), it just has nothing to
+        refuse. The loss and operational limits are relaxed for the same
+        reason the position limits are — a research run must not invent a
+        risk appetite (see :func:`permissive_risk_limits`).
+        """
+        return cls(
+            limits=permissive_risk_limits(),
+            loss_limits=LossLimits(
+                max_daily_loss=Decimal(1),
+                max_weekly_loss=Decimal(1),
+                max_drawdown=Decimal(1),
+                max_consecutive_losses=10**9,
+            ),
+            operational_limits=OperationalLimits(
+                max_trades_per_day=10**9,
+                max_open_orders=1,
+                max_order_frequency_per_minute=10**9,
+            ),
+        )
+
     def record_trade(self) -> None:
         """Record a trade for operational limits."""
         self._trades_today += 1
@@ -260,3 +285,22 @@ class RiskManager:
     def reset_daily(self) -> None:
         """Reset daily counters."""
         self._trades_today = 0
+
+
+def permissive_risk_limits() -> RiskLimits:
+    """Position limits that approve any long-only spot order.
+
+    A backtest must still route every order through the manager (chapter
+    33.6), but it must not invent a risk appetite the user never stated:
+    a research run with a 2 % daily-loss stop would silently refuse trades
+    and report a smaller, wrong result. The default is therefore the
+    permissive end — the whole portfolio may be used — and chapter 58
+    supplies the real numbers when the user has them.
+    """
+    return RiskLimits(
+        max_risk_per_trade=Decimal(1),
+        max_position_size=Decimal(1),
+        max_total_exposure=Decimal(1),
+        max_long_exposure=Decimal(1),
+        max_short_exposure=Decimal(0),
+    )

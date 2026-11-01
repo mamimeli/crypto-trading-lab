@@ -28,9 +28,18 @@ import enum
 import random
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import ClassVar, Protocol, Sequence
+from typing import TYPE_CHECKING, ClassVar, Protocol, Sequence
 
 from crypto_trading_lab.signals import Signal, signal_from_decision
+from crypto_trading_lab.risk_manager import (
+    OrderRequest as RiskOrderRequest,
+    PortfolioState,
+    RiskDecision,
+    RiskManager,
+)
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from crypto_trading_lab.risk_manager import RiskLimits
 
 from collections import deque
 
@@ -120,6 +129,12 @@ class BacktestConfig:
     #: Chapter 33.5: the strategy identifier the signals are stamped with.
     #: Empty means the caller built the strategy directly and did not say.
     strategy_id: str = ""
+    #: Chapter 33.6: the limits the risk manager applies to every order this
+    #: run creates. ``None`` means "no limits stated", which the engine fills
+    #: with the permissive default — the gate stays in the path, it just has
+    #: nothing to refuse. Chapter 58 supplies real numbers when the user has
+    #: them, and a rejected order is information, not a defect.
+    risk_limits: "RiskLimits | None" = None
 
     def execution_realism_name(self) -> str:
         """Which execution model this run used (chapter 56.2)."""
@@ -148,6 +163,8 @@ class BacktestConfig:
         }
         if self.strategy_parameters:
             data["strategy_parameters"] = self.strategy_parameters
+        # Chapter 33.6: a result must say whether a real gate was in the path.
+        data["risk_gate"] = "permissive" if self.risk_limits is None else "configured"
         return data
 
 
@@ -337,6 +354,12 @@ class BacktestResult:
     #: per candle, including hold and no-signal ones: a log that only kept
     #: the trades could not answer "why didn't it trade here?".
     signals: tuple["Signal", ...] = ()
+    #: Chapter 33.6: orders the risk manager refused. Zero under the
+    #: permissive default is expected; anything else means a limit was
+    #: configured and it acted.
+    risk_rejections: int = 0
+    #: Why, once each, in the order they happened.
+    risk_rejection_reasons: tuple[str, ...] = ()
 
     @property
     def net_profit(self) -> Decimal:
@@ -485,6 +508,51 @@ def _reported_costs(
     return Decimal(0), (price - reference).copy_abs() * quantity
 
 
+class _VisibleCandles(Sequence):
+    """The candles a strategy is allowed to see: ``candles[: index + 1]``.
+
+    Slicing the real list on every candle would copy it, which is O(N^2) over
+    a run. This view costs O(1) and — unlike handing over the full list and
+    trusting every strategy to slice it — makes look-ahead impossible: the
+    length, iteration and every index stop at the current candle.
+
+    The engine used to pass the whole sequence and *say* the strategy saw the
+    prefix. A guarantee that depends on the caller's good behaviour is not a
+    guarantee (chapter 37).
+    """
+
+    __slots__ = ("_candles", "_last")
+
+    def __init__(self, candles: Sequence[Candle], last: int) -> None:
+        self._candles = candles
+        self._last = last
+
+    def __len__(self) -> int:
+        return self._last + 1
+
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            start, stop, step = key.indices(len(self))
+            return [self._candles[i] for i in range(start, stop, step)]
+        position = key
+        if position < 0:
+            position += len(self)
+        if position < 0 or position > self._last:
+            if position < 0 or position >= len(self._candles):
+                raise IndexError(
+                    f"candle {key} does not exist; this run has "
+                    f"{len(self._candles)} candles"
+                )
+            raise IndexError(
+                f"candle {key} is not visible yet: at this point the strategy "
+                f"may only read candles[:{self._last + 1}] (chapter 37)"
+            )
+        return self._candles[position]
+
+    def __repr__(self) -> str:  # pragma: no cover - debugging aid
+        return f"_VisibleCandles({len(self)} of {len(self._candles)})"
+
+
 def _indicator_values(
     strategy: Strategy, index: int, candles: Sequence[Candle]
 ) -> dict[str, Decimal]:
@@ -503,6 +571,87 @@ def _indicator_values(
         for name, value in (reader(index, candles) or {}).items()
         if value is not None
     }
+
+
+def _buy_quantity(cash: Decimal, price: Decimal, config: BacktestConfig) -> Decimal:
+    """How much a BUY would ask for at ``price`` with the cash available.
+
+    Shared by the order branch and the risk gate so the quantity the gate
+    judges is exactly the quantity that would be sent (chapter 33.6).
+    """
+    estimate = config.costs.buy_price(price)
+    return _step_quantity(
+        cash * config.position_fraction / estimate,
+        config.quantity_step,
+    )
+
+
+def _portfolio_state(
+    *,
+    cash: Decimal,
+    position: Decimal,
+    price: Decimal,
+    initial_capital: Decimal,
+    peak_equity: Decimal,
+) -> PortfolioState:
+    """The portfolio the risk manager sees, at this candle's price.
+
+    Two approximations are stated instead of hidden: the engine has no day
+    boundary, so ``daily_pnl`` and ``weekly_pnl`` are the run's cumulative
+    P&L (a loss limit therefore acts as a run-level stop), and consecutive
+    losses are not tracked, so that limit stays inert in a backtest.
+    """
+    long_exposure = position * price
+    total = cash + long_exposure
+    drawdown = (
+        Decimal(0)
+        if peak_equity <= 0
+        else max(Decimal(0), (peak_equity - total) / peak_equity)
+    )
+    return PortfolioState(
+        total_value=total,
+        long_exposure=long_exposure,
+        short_exposure=Decimal(0),
+        daily_pnl=total - initial_capital,
+        weekly_pnl=total - initial_capital,
+        current_drawdown=drawdown,
+        consecutive_losses=0,
+    )
+
+
+def _risk_refusal(
+    manager: RiskManager,
+    *,
+    side: OrderSide,
+    quantity: Decimal,
+    price: Decimal,
+    state: PortfolioState,
+    strategy_name: str,
+    symbol: str,
+    timestamp: str,
+) -> str | None:
+    """The reason the risk manager refused this order, or ``None``.
+
+    Chapter 33.6: the strategy proposes, the risk manager disposes. This is
+    the only path from a signal to an order, so a strategy cannot reach the
+    execution model without passing through here.
+    """
+    if quantity <= 0:
+        return None
+    verdict = manager.evaluate(
+        RiskOrderRequest(
+            strategy_name=strategy_name,
+            symbol=symbol,
+            side="buy" if side is OrderSide.BUY else "sell",
+            quantity=quantity,
+            price=price,
+            timestamp=timestamp,
+        ),
+        state,
+    )
+    if verdict.decision is RiskDecision.APPROVE:
+        return None
+    return verdict.reason
 
 
 def _parameter_snapshot(strategy: Strategy) -> dict[str, object]:
@@ -575,6 +724,9 @@ def run_backtest(
     order_count = 0
     rejected_orders = 0
     partial_fills = 0
+    risk_rejections = 0
+    risk_reasons: list[str] = []
+    peak_equity = config.initial_capital
     total_fees = Decimal(0)
     total_slippage = Decimal(0)
     total_spread = Decimal(0)
@@ -598,6 +750,16 @@ def run_backtest(
     )
     signal_strategy_version = str(getattr(strategy, "version", "") or "unknown")
 
+    # Chapter 33.6: every order passes through the risk manager. Without
+    # configured limits the manager approves everything (the gate is in the
+    # path, it just has nothing to refuse), so a research run does not
+    # silently acquire a risk appetite nobody stated.
+    risk = (
+        RiskManager.permissive()
+        if config.risk_limits is None
+        else RiskManager(config.risk_limits)
+    )
+
     for index in range(len(candles)):
         current = candles[index]
 
@@ -613,12 +775,45 @@ def run_backtest(
                     interval_seconds,
                 )
 
+            # Chapter 33.6: the strategy proposed, the risk manager disposes.
+            # Only the orders this engine would actually create are judged, and
+            # a refusal means no order this candle — the signal still happened
+            # and is recorded below, because a refusal is information.
             if pending_signal is OrderSide.BUY and position == 0:
-                estimate = config.costs.buy_price(fill_price)
-                desired = _step_quantity(
-                    cash * config.position_fraction / estimate,
-                    config.quantity_step,
-                )
+                gate_quantity = _buy_quantity(cash, fill_price, config)
+            elif pending_signal is OrderSide.SELL and position > 0:
+                gate_quantity = position
+            else:
+                gate_quantity = Decimal(0)
+            refusal = _risk_refusal(
+                risk,
+                side=pending_signal,
+                quantity=gate_quantity,
+                price=fill_price,
+                state=_portfolio_state(
+                    cash=cash,
+                    position=position,
+                    # The same price the order would trade at: valuing the
+                    # position at the close while the order used the open made
+                    # a full exit look like it opened a short when open > close,
+                    # and the risk manager then refused the very order that
+                    # reduces exposure.
+                    price=fill_price,
+                    initial_capital=config.initial_capital,
+                    peak_equity=peak_equity,
+                ),
+                strategy_name=signal_strategy_id,
+                symbol=str(current.symbol),
+                timestamp=current.open_time.isoformat(),
+            )
+            if refusal is not None:
+                risk_rejections += 1
+                if refusal not in risk_reasons:
+                    risk_reasons.append(refusal)
+                pending_signal = None
+
+            if pending_signal is OrderSide.BUY and position == 0:
+                desired = _buy_quantity(cash, fill_price, config)
                 if desired > 0:
                     fill = _simulate_fill(
                         config=config,
@@ -660,6 +855,7 @@ def run_backtest(
                             )
                             cash -= quantity * price + fee
                             order_count += 1
+                            risk.record_trade()
                             position = quantity
                             avg_entry = price
                             entry_time = current.open_time.isoformat()
@@ -698,6 +894,7 @@ def run_backtest(
                     closed_spread = entry_spread * fraction
                     cash += quantity * price - fee
                     order_count += 1
+                    risk.record_trade()
                     trades.append(
                         TradeRecord(
                             entry_time=entry_time,
@@ -727,9 +924,13 @@ def run_backtest(
         equity = cash + position * current.close
         equity_curve.append(equity)
         exposure_curve.append(position > 0)
+        # The risk manager needs a peak to measure drawdown against.
+        peak_equity = max(peak_equity, equity)
 
-        # 3. Ask the strategy — it only sees candles up to ``index``.
-        signal = strategy.on_candle(index, candles)
+        # 3. Ask the strategy — it only sees candles up to ``index``, and the
+        # view makes that true instead of merely documented.
+        visible = _VisibleCandles(candles, index)
+        signal = strategy.on_candle(index, visible)
         if signal is not None:
             # Long-only spot MVP: SELL closes, never shorts.
             pending_signal = signal
@@ -742,7 +943,7 @@ def run_backtest(
                 strategy_id=signal_strategy_id,
                 strategy_version=signal_strategy_version,
                 parameters=config.strategy_parameters,
-                indicators=_indicator_values(strategy, index, candles),
+                indicators=_indicator_values(strategy, index, visible),
             )
         )
 
@@ -769,6 +970,8 @@ def run_backtest(
         rejected_orders=rejected_orders,
         partial_fills=partial_fills,
         signals=tuple(signals),
+        risk_rejections=risk_rejections,
+        risk_rejection_reasons=tuple(risk_reasons),
         strategy_version=str(getattr(strategy, "version", "unknown")),
         # Chapter 53 (experiment tracking) does not exist yet, so
         # datasets are honestly recorded as unversioned.

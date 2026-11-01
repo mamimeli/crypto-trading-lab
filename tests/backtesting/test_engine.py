@@ -142,22 +142,35 @@ def test_execution_at_next_open_not_same_close():
 
 
 def test_no_lookahead_strategy_sees_only_past():
-    seen_max = []
+    """The engine hands over the prefix, not the whole sequence.
+
+    This used to be a smoke test: the engine passed the full list and every
+    strategy was trusted to slice it. A guarantee that depends on the
+    caller's good behaviour is not a guarantee, so the engine now passes a
+    view that stops at the current candle.
+    """
+    visible_lengths = []
+    refused = []
 
     class Spy:
         name = "spy"
 
         def on_candle(self, index, candles):
-            seen_max.append(len(candles) - index)  # remaining candles visible
+            visible_lengths.append(len(candles))
+            try:
+                candles[index + 1]
+            except IndexError as error:
+                refused.append(str(error))
             return None
 
     run_backtest(_candles([1, 2, 3, 4, 5]), Spy())
-    # The engine passes the full list but strategies must slice; our built-in
-    # strategies slice explicitly. Here we assert the engine contract: the
-    # spy sees the full list each time (it must slice itself per chapter 33),
-    # so instead verify the engine fills at NEXT open which is the real
-    # look-ahead protection:
-    assert seen_max  # smoke: strategy was consulted every candle
+
+    assert visible_lengths == [1, 2, 3, 4, 5]
+    hidden = [message for message in refused if "not visible yet" in message]
+    assert len(hidden) == 4  # every candle but the last has a future to hide
+    assert "not visible yet" in hidden[0]
+    # On the last candle the index is simply past the end of the run.
+    assert any("does not exist" in message for message in refused)
 
 
 def test_determinism_two_runs_identical():

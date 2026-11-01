@@ -14,6 +14,29 @@ per-chapter state of the specification, see [`ROADMAP.md`](ROADMAP.md).
 
 ### Added
 
+- **Chapter 33.6 (mandatory architecture) closed — the flow is enforced, not
+  described.** `run_backtest()` now builds a `RiskManager` per run and
+  evaluates every order it would create, including exits: a refusal means no
+  order that candle, the signal is still recorded, and
+  `BacktestResult.risk_rejections` / `risk_rejection_reasons` say what
+  happened. With no limits configured the engine uses
+  `RiskManager.permissive()` — the gate is in the path, it just has nothing
+  to refuse, because a backtest must not invent a risk appetite nobody
+  stated — and `config_metadata["risk_gate"]` records which of the two ran.
+  New `tests/test_architecture_boundaries.py` parses the strategy-surface
+  modules with `ast` and refuses any import of an exchange, credentials, the
+  network or (outside the executor) the risk manager; the scan is itself
+  tested against a violating file. `RiskLimits` is frozen and a fresh manager
+  is built per run, so a counter cannot leak between runs. Documented in
+  `docs/en/developers/architecture-boundaries.md`; 5 boxes ticked in chapter
+  33.6.
+  **Fixed while enforcing it:** the engine passed the *whole* candle sequence
+  to `on_candle` and trusted each strategy to slice it, while its own
+  docstring claimed the strategy saw `candles[:i+1]`. It now passes a
+  `_VisibleCandles` view (O(1); a slice per candle would be O(N²)) whose
+  length, iteration and indices stop at the current candle, raising an
+  `IndexError` that distinguishes *hidden* from *absent*.
+
 - **Chapter 33.7 (strategy validation) closed — the gate before the run.**
   New `strategy_validation.py`: `validate_for_run()` returns
   `StrategyValidation` (a tuple of `ValidationIssue`s, each with a severity

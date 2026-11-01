@@ -139,7 +139,7 @@ task order is in `AGENT-HANDOFF.md` §5.2.
 | 30 | [~] | 14 | 11 | No | Market precision and exchange rules |
 | 31 | [~] | 23 | 6 | No | Technical indicators |
 | 32 | [~] | 18 | 16 | No | Financial charts |
-| 33 | [~] | 37 | 49 | No | Strategies |
+| 33 | [~] | 42 | 44 | No | Strategies |
 | 34 | [ ] | 0 | 24 | No | Visual strategy builder |
 | 35 | [~] | 9 | 3 | Yes | Strategy complexity control |
 | 36 | [~] | 4 | 15 | No | Strategy registry |
@@ -2259,11 +2259,52 @@ Execution Engine
 Broker / Exchange
 ```
 
-* [ ] Strategies generate signals but do not create exchange orders directly.
-* [ ] No strategy may communicate directly with an exchange API.
-* [ ] No strategy may bypass the `RiskManager`.
-* [ ] No strategy may modify global risk limits.
-* [ ] No strategy may access API credentials directly.
+* [x] Strategies generate signals but do not create exchange orders directly.
+* [x] No strategy may communicate directly with an exchange API.
+* [x] No strategy may bypass the `RiskManager`.
+* [x] No strategy may modify global risk limits.
+* [x] No strategy may access API credentials directly.
+
+**Implemented 2026-10-31.** The flow is now enforced, not described, and
+`tests/test_architecture_boundaries.py` is the proof:
+
+* **No orders, no exchange, no credentials.** A strategy returns an
+  `OrderSide`; the engine builds the order. Every strategy-surface module
+  (`engine`, `rule_strategy`, `strategy_builder`, `strategy_registry`,
+  `signals`, `strategy_parameters`, `strategy_validation`,
+  `complexity_control`) is parsed with `ast` and refused if it imports an
+  exchange, `security`, `ccxt`, `requests`, `httpx`, `aiohttp`, `websockets`,
+  `socket` or `urllib`. Static, because a module that *can* import an
+  exchange has the capability whether or not this run used it. The scan is
+  itself tested against a deliberately violating file, so it cannot pass by
+  being broken.
+* **No bypassing the risk manager.** `run_backtest()` now builds a
+  `RiskManager` per run and evaluates **every** order it would create before
+  creating it: a refusal means no order that candle, the signal is still
+  recorded, and `BacktestResult.risk_rejections` /
+  `risk_rejection_reasons` count what happened. With no limits configured the
+  manager is `RiskManager.permissive()` — the gate is in the path, it just has
+  nothing to refuse, because a research run must not invent a risk appetite
+  nobody stated. `config_metadata["risk_gate"]` says which of the two ran.
+* **No touching global limits.** `RiskLimits` is frozen, the engine reads it
+  from the config and builds a fresh manager per run (so a counter cannot
+  leak between runs — tested by running twice and comparing), and no
+  strategy-side module may import `risk_manager` at all; only the executor
+  may.
+
+**Fixed while enforcing it:** the engine passed the *whole* candle sequence
+to `on_candle` and trusted each strategy to slice it — the module docstring
+claimed the strategy saw `candles[:i+1]`, which was false. It now passes a
+`_VisibleCandles` view: O(1) (a slice per candle would be O(N²)), with
+`len()`, iteration and every index stopping at the current candle and an
+`IndexError` that says whether the candle is *hidden* or *does not exist*.
+A look-ahead guarantee that depends on the caller's good behaviour is not a
+guarantee.
+
+Two limits, stated: the engine has no day boundary, so a configured daily or
+weekly loss limit acts as a run-level stop; and consecutive losses are not
+tracked, so that limit stays inert in a backtest. Documented in
+`docs/en/developers/architecture-boundaries.md`.
 
 ### 33.7 Strategy validation
 

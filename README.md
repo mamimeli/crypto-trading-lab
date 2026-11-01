@@ -11,7 +11,7 @@ Survive → Validate → Earn. In that order, non-negotiable.
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PyQt6](https://img.shields.io/badge/GUI-PyQt6-41CD52?logo=qt&logoColor=white)](https://www.riverbankcomputing.com/software/pyqt/)
-[![Tests: 1102 passed, 2 skipped](https://img.shields.io/badge/tests-1102%20passed%2C%202%20skipped-brightgreen)](#test-baseline)
+[![Tests: 1127 passed, 2 skipped](https://img.shields.io/badge/tests-1127%20passed%2C%202%20skipped-brightgreen)](#test-baseline)
 [![CI](https://github.com/wachin/crypto-trading-lab/actions/workflows/tests.yml/badge.svg)](https://github.com/wachin/crypto-trading-lab/actions/workflows/tests.yml)
 [![Platform: Debian 13](https://img.shields.io/badge/platform-Debian%2013-A81D33?logo=debian&logoColor=white)](#dependencies)
 [![Method: AFML](https://img.shields.io/badge/method-L%C3%B3pez%20de%20Prado%20(2018)-purple)](docs/en/developers/afml-techniques.md)
@@ -74,7 +74,7 @@ cryptocurrency research laboratory. Follow these rules exactly.
 3. Make small changes. After every change run:
        QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q
     and check the command's EXIT CODE is 0, not only the printed count
-    (baseline: 1102 passed, 2 skipped). If either changes, report it: a
+    (baseline: 1127 passed, 2 skipped). If either changes, report it: a
     suite that prints "passed" and exits non-zero is a bug, not a detail.
 4. Do NOT install dependencies. If one is genuinely needed, STOP and
    report: package name, source (Debian or PyPI), reason, and the exact
@@ -265,7 +265,7 @@ cd crypto-trading-lab
 # 3. Verify the environment, then the baseline
 python3 -c "import pyqtgraph, sqlalchemy, platformdirs; print('deps OK')"
 QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q
-# → 1102 passed, 2 skipped
+# → 1127 passed, 2 skipped
 
 # 4. Run it
 PYTHONPATH=src python3 -m crypto_trading_lab
@@ -273,7 +273,7 @@ PYTHONPATH=src python3 -m crypto_trading_lab
 
 Run step 3 **before** you change anything. The suite is offline and takes well
 under a minute, so it is the cheapest way to know your setup is sound — if it
-prints anything other than `1102 passed, 2 skipped`, the problem is the
+prints anything other than `1127 passed, 2 skipped`, the problem is the
 environment, not your change, and it is worth fixing first. Two of those
 packages are easy to leave out and neither failure looks like a missing
 dependency:
@@ -330,7 +330,7 @@ Python package, which is what macOS and Windows need and what a Linux user
 may prefer for an isolated environment.
 
 > **What is verified.** Debian 13 with the system packages is the supported
-> stack: **1102 passed, 2 skipped**. **Windows is also verified**: on Windows
+> stack: **1127 passed, 2 skipped**. **Windows is also verified**: on Windows
 > 10 with Python 3.14.7 from PyPI (2026-10-01 — clean install, the window
 > opens, identical numbers) and again on 2026-10-31 with Python 3.12, after
 > two platform assumptions in the suite were fixed; see
@@ -368,7 +368,7 @@ python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
-QT_QPA_PLATFORM=offscreen python -m pytest tests/ -q   # → 1102 passed, 2 skipped
+QT_QPA_PLATFORM=offscreen python -m pytest tests/ -q   # → 1127 passed, 2 skipped
 python -m crypto_trading_lab
 ```
 
@@ -412,7 +412,7 @@ python -m pip install --upgrade pip
 pip install -r requirements-all.txt
 python -m pip install -e ".[dev,ccxt,pdf,credentials]"
 $env:QT_QPA_PLATFORM = "offscreen"
-python -m pytest tests/ -q   # → 1102 passed, 2 skipped
+python -m pytest tests/ -q   # → 1127 passed, 2 skipped
 python -m crypto_trading_lab
 ```
 
@@ -900,7 +900,7 @@ profit.
 
 ```bash
 QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q
-# → 1102 passed, 2 skipped
+# → 1127 passed, 2 skipped
 # → and it must exit 0
 ```
 
