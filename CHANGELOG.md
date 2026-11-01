@@ -14,6 +14,28 @@ per-chapter state of the specification, see [`ROADMAP.md`](ROADMAP.md).
 
 ### Added
 
+- **Chapter 35 (strategy complexity) advanced — the record, and where it is
+  shown.** `complexity_control.py` now separates two questions it used to
+  blur: the code-level maintainability analyzer (cyclomatic complexity,
+  Halstead volume) and `StrategyComplexity`, which records per strategy
+  *version* exactly what chapter 35 asks for — parameters, rules,
+  indicators, filters, conditions, the size of the parameter grid and the
+  size of any machine-learning model. The registry stores the record with
+  each registration and recomputes the parameter count, the grid and the
+  version when `update_metadata()` changes them; declarative rules derive
+  theirs from the rule itself (`strategy_complexity_from_rule`); the
+  Backtesting Lab prints it under "What this strategy version declares";
+  and `qualification.evaluate_complexity` now accepts the metrics and puts
+  `score=…` plus the breakdown into the review instead of a bare boolean.
+  The two decision rules — `prefer_simpler` (comparable evidence → the
+  lower score wins) and `complexity_growth_warning` (growth without better
+  evidence) — are implemented, tested and documented in
+  `docs/en/developers/strategy-complexity.md`, but **no screen calls them
+  yet** (nothing compares two strategies side by side), so those two
+  roadmap boxes stay open and the honest state is written in
+  `ROADMAP.md` chapter 35. Unknown bounds are reported as unknown: a
+  parameter with no range counts as one setting, and a rule's grid is `1`.
+
 - **Chapter 29 (data quality management) closed.** `market_data/quality.py`
   now flags delisted assets (`DELISTED_ASSET`), detects structural liquidity
   changes (`LIQUIDITY_CHANGE`), records an explicit survivorship-bias note

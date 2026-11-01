@@ -13,7 +13,10 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from enum import Enum
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:  # keeps this module free of runtime project imports
+    from crypto_trading_lab.complexity_control import StrategyComplexity
 
 
 class QualificationOutcome(Enum):
@@ -164,11 +167,28 @@ def evaluate_data_quality(ok: bool) -> CriterionResult:
     )
 
 
-def evaluate_complexity(acceptable: bool) -> CriterionResult:
-    return _flag(
-        "complexity",
-        acceptable,
-        "Complexity must be justified by edge (chapter 35)",
+def evaluate_complexity(
+    acceptable: bool,
+    metrics: Optional["StrategyComplexity"] = None,
+) -> CriterionResult:
+    """The chapter 35 criterion, with the metrics shown (chapter 66.1).
+
+    ``metrics`` is optional so existing callers that only know the verdict
+    keep working; when it is supplied the review carries the numbers instead
+    of a bare boolean, which is what chapter 35 asks for.
+    """
+    if metrics is None:
+        return _flag(
+            "complexity",
+            acceptable,
+            "Complexity must be justified by edge (chapter 35)",
+        )
+    return CriterionResult(
+        name="complexity",
+        passed=acceptable,
+        value=f"score={metrics.score}",
+        threshold="justified by out-of-sample evidence",
+        notes=metrics.describe() + " (chapter 35)",
     )
 
 
@@ -202,6 +222,7 @@ def qualify_strategy(
     execution_realistic: Optional[bool] = None,
     data_quality_ok: Optional[bool] = None,
     complexity_acceptable: Optional[bool] = None,
+    complexity_metrics: Optional["StrategyComplexity"] = None,
     statistical_evidence_ok: Optional[bool] = None,
     operational_stable: Optional[bool] = None,
     strategy_name: str = "Strategy",
@@ -236,7 +257,9 @@ def qualify_strategy(
     if data_quality_ok is not None:
         criteria.append(evaluate_data_quality(data_quality_ok))
     if complexity_acceptable is not None:
-        criteria.append(evaluate_complexity(complexity_acceptable))
+        criteria.append(
+            evaluate_complexity(complexity_acceptable, complexity_metrics)
+        )
     if statistical_evidence_ok is not None:
         criteria.append(evaluate_statistical_evidence(statistical_evidence_ok))
     if operational_stable is not None:

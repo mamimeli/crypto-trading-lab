@@ -14,6 +14,10 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Type
 
 from crypto_trading_lab.backtesting.engine import Strategy
+from crypto_trading_lab.complexity_control import (
+    StrategyComplexity,
+    strategy_complexity_from_schema,
+)
 
 
 @dataclass(frozen=True)
@@ -30,6 +34,9 @@ class StrategyMetadata:
     tags: Set[str] = field(default_factory=set)
     dependencies: Set[str] = field(default_factory=set)
     min_data_requirements: Dict[str, Any] = field(default_factory=dict)
+    #: Chapter 35 metrics, recorded per strategy version. ``None`` only for
+    #: entries imported from a file written before the field existed.
+    complexity: Optional[StrategyComplexity] = None
 
 
 @dataclass
@@ -77,15 +84,23 @@ class StrategyRegistry:
             ("ma_crossover", MACrossoverStrategy, {
                 "fast": {"type": "int", "min": 1, "max": 200, "default": 10, "description": "Fast SMA period"},
                 "slow": {"type": "int", "min": 1, "max": 500, "default": 30, "description": "Slow SMA period"},
-            }, "Moving Average Crossover Strategy", "Built-in"),
-            ("buy_and_hold", BuyAndHoldStrategy, {}, "Buy and Hold Strategy", "Built-in"),
-            ("null_strategy", NullStrategy, {}, "Null Strategy (never trades)", "Built-in"),
-            ("rsi", RSIStrategy, {"period": {"type": "int", "min": 1, "max": 200, "default": 14, "description": "RSI period"}, "oversold": {"type": "int", "min": 1, "max": 99, "default": 30, "description": "Oversold level"}, "overbought": {"type": "int", "min": 2, "max": 99, "default": 70, "description": "Overbought level"}, "volume_filter_period": {"type": "int", "min": 0, "max": 200, "default": 0, "description": "Volume-filter SMA period (0 disables)"}, "trend_filter_period": {"type": "int", "min": 0, "max": 500, "default": 0, "description": "Trend-filter SMA period (0 disables)"}, "cooldown": {"type": "int", "min": 0, "max": 500, "default": 0, "description": "Candles to wait after an exit"}}, "RSI Strategy (configurable filters)", "Built-in"),
-            ("breakout", RollingHighLowBreakoutStrategy, {"period": {"type": "int", "min": 2, "max": 500, "default": 20, "description": "Lookback bars for the rolling range"}}, "Rolling High/Low Breakout Strategy", "Built-in"),
-            ("bollinger", BollingerBandsMeanReversionStrategy, {"period": {"type": "int", "min": 1, "max": 500, "default": 20, "description": "Bollinger SMA period"}, "k": {"type": "int", "min": 1, "max": 10, "default": 2, "description": "Number of standard deviations"}}, "Bollinger Bands Mean Reversion Strategy", "Built-in"),
+            }, "Moving Average Crossover Strategy", "Built-in",
+             {"rules": 2, "indicators": 2, "filters": 0, "conditions": 2}),
+            ("buy_and_hold", BuyAndHoldStrategy, {}, "Buy and Hold Strategy", "Built-in",
+             {"rules": 1, "indicators": 0, "filters": 0, "conditions": 0}),
+            ("null_strategy", NullStrategy, {}, "Null Strategy (never trades)", "Built-in",
+             {"rules": 0, "indicators": 0, "filters": 0, "conditions": 0}),
+            ("rsi", RSIStrategy, {"period": {"type": "int", "min": 1, "max": 200, "default": 14, "description": "RSI period"}, "oversold": {"type": "int", "min": 1, "max": 99, "default": 30, "description": "Oversold level"}, "overbought": {"type": "int", "min": 2, "max": 99, "default": 70, "description": "Overbought level"}, "volume_filter_period": {"type": "int", "min": 0, "max": 200, "default": 0, "description": "Volume-filter SMA period (0 disables)"}, "trend_filter_period": {"type": "int", "min": 0, "max": 500, "default": 0, "description": "Trend-filter SMA period (0 disables)"}, "cooldown": {"type": "int", "min": 0, "max": 500, "default": 0, "description": "Candles to wait after an exit"}}, "RSI Strategy (configurable filters)", "Built-in",
+             # RSI + the volume average + the trend average; three filters:
+             # volume, trend and the cooldown after an exit.
+             {"rules": 2, "indicators": 3, "filters": 3, "conditions": 2}),
+            ("breakout", RollingHighLowBreakoutStrategy, {"period": {"type": "int", "min": 2, "max": 500, "default": 20, "description": "Lookback bars for the rolling range"}}, "Rolling High/Low Breakout Strategy", "Built-in",
+             {"rules": 2, "indicators": 2, "filters": 0, "conditions": 2}),
+            ("bollinger", BollingerBandsMeanReversionStrategy, {"period": {"type": "int", "min": 1, "max": 500, "default": 20, "description": "Bollinger SMA period"}, "k": {"type": "int", "min": 1, "max": 10, "default": 2, "description": "Number of standard deviations"}}, "Bollinger Bands Mean Reversion Strategy", "Built-in",
+             {"rules": 2, "indicators": 3, "filters": 0, "conditions": 2}),
         ]
 
-        for strategy_id, factory, params, desc, author in builtins:
+        for strategy_id, factory, params, desc, author, structure in builtins:
             self.register(
                 strategy_id=strategy_id,
                 factory=factory,
@@ -94,6 +109,7 @@ class StrategyRegistry:
                 author=author,
                 description=desc,
                 parameters_schema=params,
+                structure=structure,
                 is_builtin=True,
             )
 
@@ -111,10 +127,29 @@ class StrategyRegistry:
         min_data_requirements: Dict[str, Any] = None,
         source_path: str = None,
         is_builtin: bool = False,
+        structure: Optional[Dict[str, int]] = None,
     ) -> StrategyRegistration:
-        """Register a new strategy."""
+        """Register a new strategy.
+
+        ``structure`` declares the counts chapter 35 asks for and that a
+        parameter schema cannot express (rules, indicators, filters,
+        conditions); the parameter count and the size of the parameter grid
+        are derived from the schema itself. A strategy that declares nothing
+        still gets a truthful record — with zeros where it declared nothing.
+        """
         if strategy_id in self._strategies and self._strategies[strategy_id].metadata.is_builtin:
             raise ValueError(f"Cannot overwrite built-in strategy: {strategy_id}")
+
+        declared = dict(structure or {})
+        complexity = strategy_complexity_from_schema(
+            parameters_schema,
+            rules=int(declared.get("rules", 0)),
+            indicators=int(declared.get("indicators", 0)),
+            filters=int(declared.get("filters", 0)),
+            conditions=int(declared.get("conditions", 0)),
+            model_complexity=int(declared.get("model_complexity", 0)),
+            version=version,
+        )
 
         now = datetime.now(timezone.utc)
         metadata = StrategyMetadata(
@@ -129,6 +164,7 @@ class StrategyRegistry:
             parameters_schema=parameters_schema,
             dependencies=dependencies or set(),
             min_data_requirements=min_data_requirements or {},
+            complexity=complexity,
         )
 
         registration = StrategyRegistration(
@@ -191,18 +227,35 @@ class StrategyRegistry:
         if not updates:
             return False
 
+        # A new version may change the parameters, so the chapter 35 record
+        # is recomputed: the structural counts it already declared are kept,
+        # the parameter count, the grid and the version follow the update.
+        schema = updates.get("parameters_schema", metadata.parameters_schema)
+        version = updates.get("version", metadata.version)
+        previous = metadata.complexity
+        complexity = strategy_complexity_from_schema(
+            schema,
+            rules=previous.num_rules if previous else 0,
+            indicators=previous.num_indicators if previous else 0,
+            filters=previous.num_filters if previous else 0,
+            conditions=previous.num_conditions if previous else 0,
+            model_complexity=previous.model_complexity if previous else 0,
+            version=version,
+        )
+
         new_metadata = StrategyMetadata(
             strategy_id=metadata.strategy_id,
             name=updates.get("name", metadata.name),
-            version=updates.get("version", metadata.version),
+            version=version,
             author=updates.get("author", metadata.author),
             description=updates.get("description", metadata.description),
             tags=updates.get("tags", metadata.tags),
             created_at=metadata.created_at,
             updated_at=datetime.now(timezone.utc),
-            parameters_schema=updates.get("parameters_schema", metadata.parameters_schema),
+            parameters_schema=schema,
             dependencies=updates.get("dependencies", metadata.dependencies),
             min_data_requirements=updates.get("min_data_requirements", metadata.min_data_requirements),
+            complexity=complexity,
         )
 
         self._strategies[strategy_id] = StrategyRegistration(
@@ -244,6 +297,11 @@ class StrategyRegistry:
                     "parameters_schema": reg.metadata.parameters_schema,
                     "dependencies": list(reg.metadata.dependencies),
                     "min_data_requirements": reg.metadata.min_data_requirements,
+                    "complexity": (
+                        reg.metadata.complexity.to_dict()
+                        if reg.metadata.complexity is not None
+                        else None
+                    ),
                 },
                 "is_builtin": reg.is_builtin,
                 "source_path": reg.source_path,
@@ -277,6 +335,11 @@ class StrategyRegistry:
                 parameters_schema=meta["parameters_schema"],
                 dependencies=set(meta["dependencies"]),
                 min_data_requirements=meta["min_data_requirements"],
+                complexity=(
+                    StrategyComplexity.from_dict(meta["complexity"])
+                    if meta.get("complexity")
+                    else None
+                ),
             )
             # Note: factory not restored from JSON - must be re-registered
             self._strategies[meta["strategy_id"]] = StrategyRegistration(

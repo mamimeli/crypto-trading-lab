@@ -293,6 +293,10 @@ def test_lab_complexity_and_parameter_sweep(qapp):
     lab = BacktestingLabWidget(_candles(300), "BTC/USDT", "1h")
     complexity = lab.analyze_complexity()
     assert "complexity" in complexity.lower()
+    # Chapter 35: the report shows what the strategy version declares, not
+    # only how complicated its Python class is.
+    assert "What this strategy version declares" in complexity
+    assert "Parameter grid" in complexity
 
     lab.fast_spin.setValue(5)
     lab.slow_spin.setValue(20)

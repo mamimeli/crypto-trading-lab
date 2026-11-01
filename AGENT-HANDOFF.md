@@ -10,24 +10,27 @@ A new AI Agent must read this file **before** doing anything else, then
 
 ---
 
-## 1. Project state (last updated 2026-10-28)
+## 1. Project state (last updated 2026-10-31)
 
 - **Repository:** `https://github.com/wachin/crypto-trading-lab`
   (branch `main`)
 - **State verified at commit:** the commit that carries this file.
-- **Tests:** 990 passed, 2 skipped, **exit code 0** —
+- **Tests:** 1015 passed, 2 skipped, **exit code 0** —
   `QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q`
   (The exit code matters: the suite used to segfault while the interpreter
   shut down, so it printed "passed" and still failed the build. See §5.)
-- **CI:** `tests` is **green on `main`** — the run for the commit that carries
-  this file reports 990/2 on `ubuntu-24.04` with pip and carries **no
-  annotations**; the history is at
+- **CI:** `tests` is **green on `main`**, but **not yet at 1015**: the last
+  observed green run reports 990/2 on `ubuntu-24.04` with pip and carries
+  **no annotations**. The chapter 35 change adds 25 tests and has only been
+  measured locally (Windows, Python 3.12). The history is at
   [actions/workflows/tests.yml](https://github.com/wachin/crypto-trading-lab/actions/workflows/tests.yml).
   The first green run was `38777456963` (2026-10-15); the suite had never
   passed before it. Do not let a push go red without reading the log.
 - **Verified platforms:** Debian 13 (system packages, Python 3.13.5) and
   **Windows 10** (pip/PyPI, Python 3.14.7, 2026-10-01 — clean install, the
-  window opens, identical numbers, `ccxt` reaches the network).
+  window opens, identical numbers, `ccxt` reaches the network). The Windows
+  path was re-measured on 2026-10-31 with **Python 3.12**: 1015/2, after two
+  platform assumptions in the suite were fixed (see §5.2 item 10).
 - **macOS — deferred by the maintainer's decision, not a pending task.** It
   comes last, once the program works on Linux and Windows. Do not spend a
   session on it and do not treat a macOS failure as a blocker. The steps are
@@ -69,6 +72,10 @@ A new AI Agent must read this file **before** doing anything else, then
   healthy/suspicious/degraded verdict. Chapters 26.2/27 were completed the
   same day (§5.2 item 4): the Binance WebSocket client is a real feed and
   `paper-live` runs a bounded session over it.
+  Chapter 35 (strategy complexity) advanced on 2026-10-31 (§5.2 item 11):
+  every strategy version now records its parameters, rules, indicators,
+  filters, conditions, grid size and model size, and qualification shows
+  them instead of a boolean.
   **Real trading remains disabled by default.**
 
 ### What changed on 2026-09-19 (direction correction + Fase A/B)
@@ -469,6 +476,37 @@ features the code did not ship. Concretely:
    four new Parts corrected claims their own projects advertise (see the
    chapter's notes), which is why the roadmap demanded per-feature
    verification.
+10. ~~**The suite was red on Windows.**~~ **DONE 2026-10-31.** Not a chapter:
+    a contributor following `README.md` §5.3 (Windows, PowerShell) got
+    `2 failed, 988 passed` where the docs promised 990/2. Both failures were
+    platform assumptions in the tests, not logic bugs: `markdown_files()`
+    sorted `Path` objects and Windows compares paths case-insensitively, and
+    two tests waited for real elapsed time by polling with 100 and 50
+    `asyncio.sleep(0.01)` calls — on Windows the event-loop clock advances
+    every 15.6 ms, so those sleeps can all return early and the loop finished
+    before the timer had ticked. Both tests now wait on an event with a 5 s
+    timeout, and the feed measures connection age with `time.monotonic()`.
+    A third test (`test_stale_data_is_detected_without_waiting_for_a_message`)
+    had the same defect and surfaced as flaky on the next run. README §5.3 now
+    states the expected output and explains the two harmless Qt startup lines
+    and that `QT_QPA_PLATFORM=offscreen` opens the GUI headless.
+11. ~~**Chapter 35 — strategy complexity control.**~~ **DONE 2026-10-31**
+    (advances item 5, the "form an idea" stage). `complexity_control.py` now
+    holds two clearly separated things: the old code-level maintainability
+    analyzer, and `StrategyComplexity` — the chapter 35 record of parameters,
+    rules, indicators, filters, conditions, grid size and model size per
+    strategy *version*. The registry stores it (and recomputes the parameter
+    count, grid and version on `update_metadata`), declarative rules derive it
+    from the rule itself, the Backtesting Lab prints it, and the chapter 66
+    qualification criterion now carries `score=…` plus the breakdown instead
+    of a bare boolean. The two decision rules (`prefer_simpler`,
+    `complexity_growth_warning`) are implemented, tested and documented in
+    `docs/en/developers/strategy-complexity.md`, but **nothing calls them
+    yet** — no screen compares two strategies — so their roadmap boxes stay
+    open. Chapter 35 is `[~]`, 9 of 12 boxes ticked.
+    **Next task:** chapters 33.1–33.9 (strategy identity, market
+    requirements, declared parameters, signal record) or 34 (the visual
+    builder's remaining blocks: filters and arithmetic are rejected today).
 
 Anything in `ROADMAP.md` marked `[ ]` or `[~]` is fair game. The roadmap is
 the specification; this list is only the recommended order.
@@ -494,7 +532,7 @@ git submodule update --init external/freqtrade
 # 2. Verify the environment:
 python3 --version            # ≥ 3.11 expected (3.13 on record)
 python3 -c "import PyQt6, pyqtgraph, sqlalchemy, platformdirs; print('deps OK')"
-QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 990 passed, 2 skipped expected
+QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1015 passed, 2 skipped expected
 
 # 3. Read in this order:
 #    1. AGENT-HANDOFF.md (this file) — state and next steps
@@ -508,4 +546,4 @@ If the test count differs, stop and report it before changing anything.
 
 ---
 
-*Handoff updated 2026-10-29. Baseline: 990 passed, 2 skipped.*
+*Handoff updated 2026-10-31. Baseline: 1015 passed, 2 skipped.*

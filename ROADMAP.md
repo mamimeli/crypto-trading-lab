@@ -141,7 +141,7 @@ task order is in `AGENT-HANDOFF.md` §5.2.
 | 32 | [~] | 18 | 16 | No | Financial charts |
 | 33 | [~] | 6 | 80 | No | Strategies |
 | 34 | [ ] | 0 | 24 | No | Visual strategy builder |
-| 35 | [ ] | 0 | 12 | No | Strategy complexity control |
+| 35 | [~] | 9 | 3 | Yes | Strategy complexity control |
 | 36 | [~] | 4 | 15 | No | Strategy registry |
 | 37 | [~] | 55 | 66 | No | Backtesting |
 | 38 | [~] | 21 | 24 | Sí | Data splitting |
@@ -2291,23 +2291,49 @@ Allow users to:
 
 ---
 
-## [ ] 35. Strategy complexity control
+## [~] 35. Strategy complexity control
 
 The system must consider strategy complexity explicitly.
 
-- [ ] Record for every strategy version:
-  - [ ] number of parameters;
-  - [ ] number of rules;
-  - [ ] number of indicators;
-  - [ ] number of filters;
-  - [ ] number of conditions;
-  - [ ] optimization complexity;
-  - [ ] model complexity where machine learning is used (see Chapter 48).
+- [x] Record for every strategy version:
+  - [x] number of parameters;
+  - [x] number of rules;
+  - [x] number of indicators;
+  - [x] number of filters;
+  - [x] number of conditions;
+  - [x] optimization complexity;
+  - [x] model complexity where machine learning is used (see Chapter 48).
 
 - [ ] A strategy with many parameters, indicators, and filters must not be considered automatically superior to a simpler one.
 - [ ] When two strategies provide comparable evidence, the simpler strategy must be favored.
-- [ ] Complexity metrics must be displayed in strategy reports and qualification reviews (see Chapter 66).
+- [x] Complexity metrics must be displayed in strategy reports and qualification reviews (see Chapter 66).
 - [ ] The application must warn when complexity grows without a corresponding evidence improvement.
+
+**Honest state (2026-10-31).** `complexity_control.StrategyComplexity`
+records the seven items per version: the registry stores them with each
+registration and recomputes the parameter count, the grid and the version
+when `update_metadata()` changes them; declarative rules derive them from
+the rule itself. The record is shown in the Backtesting Lab report
+("What this strategy version declares") and in the chapter 66 qualification
+criterion, which now carries `score=…` and the breakdown instead of a bare
+boolean.
+
+The two decision rules exist, are tested and are documented in
+`docs/en/developers/strategy-complexity.md` — `prefer_simpler()` (comparable
+evidence → lower complexity wins) and `complexity_growth_warning()` (growth
+without better evidence) — but **no screen calls them yet**: the application
+still has no view that compares two strategies side by side (the registry
+comparison of chapter 36 is open). They are therefore left unticked: the
+rule is written down and exercised by tests, not yet part of a user's
+decision.
+
+Two deliberate limits, stated so nobody mistakes them for bugs. A parameter
+with no declared bounds counts as one setting rather than a guessed range,
+and the rule language declares no bounds at all, so a rule's
+`optimization_complexity` is `1` — unknown is reported as unknown. And the
+`score` weights are a stated convention (4·parameters + 2·indicators +
+2·filters + rules + conditions + order of magnitude of the grid), not a
+measurement of quality.
 
 ---
 

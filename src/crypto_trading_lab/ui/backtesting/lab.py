@@ -42,6 +42,8 @@ from crypto_trading_lab.optimization import (
 from crypto_trading_lab.complexity_control import (
     analyze_strategy_complexity,
     COMPLEXITY_CONTROL_WARNING,
+    STRATEGY_COMPLEXITY_EXPLANATION,
+    strategy_complexity_from_rule,
 )
 
 from crypto_trading_lab.backtesting.metrics import (
@@ -345,6 +347,20 @@ class BacktestingLabWidget(QWidget):
             return RuleStrategy
         return NullStrategy
 
+    def _declared_complexity(self):
+        """Chapter 35 metrics for the selected strategy, or ``None``."""
+        kind = self.strategy_combo.currentData()
+        if kind == STRATEGY_RULE:
+            return (
+                strategy_complexity_from_rule(self._rule_spec)
+                if self._rule_spec is not None
+                else None
+            )
+        registration = self.registry.get(kind)
+        if registration is None:
+            return None
+        return registration.metadata.complexity
+
     def analyze_complexity(self) -> str:
         """Chapter 35 report for the selected strategy, shown to the user."""
         try:
@@ -369,8 +385,28 @@ class BacktestingLabWidget(QWidget):
         ]
         lines.extend(f"  - {v}" for v in report.violations)
         lines.extend(f"  - {w}" for w in report.warnings)
+
+        declared = self._declared_complexity()
+        if declared is not None:
+            lines.extend(
+                [
+                    "",
+                    self.tr("-- What this strategy version declares --"),
+                    self.tr("Parameters: {x}").format(x=declared.num_parameters),
+                    self.tr("Rules: {x}").format(x=declared.num_rules),
+                    self.tr("Indicators: {x}").format(x=declared.num_indicators),
+                    self.tr("Filters: {x}").format(x=declared.num_filters),
+                    self.tr("Conditions: {x}").format(x=declared.num_conditions),
+                    self.tr("Parameter grid: {x} configuration(s)").format(
+                        x=declared.optimization_complexity
+                    ),
+                    self.tr("Complexity score: {x}").format(x=declared.score),
+                ]
+            )
+
         lines.append("")
         lines.append(self.tr(COMPLEXITY_CONTROL_WARNING))
+        lines.append(self.tr(STRATEGY_COMPLEXITY_EXPLANATION))
         lines.append(
             self.tr(
                 "Remember: when two strategies show comparable evidence, "

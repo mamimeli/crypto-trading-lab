@@ -6,7 +6,7 @@ is the single place to check whether the agent-onboarding surface is
 complete and current; the files themselves remain the source of truth
 for their content.
 
-Last verified: 2026-10-29 (baseline updated to 990).
+Last verified: 2026-10-31 (baseline updated to 1015 by the chapter 35 work).
 
 ## Core agent files
 
@@ -51,7 +51,9 @@ The test baseline quoted across the agent files must match reality.
 When the count changes, update it everywhere (this is what the
 "stale baseline" check below is for).
 
-- [x] Current baseline: **990 passed, 2 skipped** (verified 2026-10-29)
+- [x] Current baseline: **1015 passed, 2 skipped** (measured 2026-10-31 on
+      Windows, Python 3.12; the Debian CI run at this count has not been
+      observed yet — the last green run was 990/2)
 - [x] `AGENTS.md` references the current baseline
 - [x] `AGENT-HANDOFF.md` references the current baseline
 - [x] `README.md` badge and inline references use the current baseline

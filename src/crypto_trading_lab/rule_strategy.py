@@ -28,6 +28,7 @@ __all__ = [
     "RuleStrategy",
     "OPERATORS",
     "SUPPORTED_INDICATORS",
+    "operand_indicator",
     "spec_from_blocks",
 ]
 
@@ -109,6 +110,19 @@ def validate_operand(operand: str) -> str:
         f"({', '.join(_PRICE_FIELDS)}), an indicator such as sma(20), "
         "or a number"
     )
+
+
+def operand_indicator(operand: str) -> tuple[str, int] | None:
+    """The indicator an operand names, or ``None`` for a field or a number.
+
+    ``"sma(20)"`` → ``("sma", 20)``; ``"close"`` and ``"50"`` → ``None``.
+    Chapter 35 counts indicators, so the grammar that defines them lives
+    here, next to the parser, instead of being re-derived elsewhere.
+    """
+    match = _INDICATOR_RE.match(validate_operand(operand))
+    if match is None:
+        return None
+    return match.group(1), int(match.group(2))
 
 
 @dataclass(frozen=True)

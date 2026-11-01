@@ -34,6 +34,7 @@ If you are new, read in this order:
 | [`live-trading-roadmap.md`](live-trading-roadmap.md) | work towards live data, testnet or real money |
 | [`live-monitoring.md`](live-monitoring.md) | work on chapter 62 (live health, alerts) |
 | [`live-vs-backtest-drift.md`](live-vs-backtest-drift.md) | work on chapter 63 drift thresholds and interpretation |
+| [`strategy-complexity.md`](strategy-complexity.md) | work on chapter 35 — what a strategy version declares, and why simpler wins a tie |
 | [`afml-techniques.md`](afml-techniques.md) | implement anything from chapters 47–50 (read it **before** coding) |
 | [`reference-projects.md`](reference-projects.md) | study the eight vendored reference projects and what was learned |
 | [`adr/`](adr/) | understand why a past decision was made (0001–0007) |
