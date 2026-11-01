@@ -14,6 +14,28 @@ per-chapter state of the specification, see [`ROADMAP.md`](ROADMAP.md).
 
 ### Added
 
+- **Chapter 33.7 (strategy validation) closed — the gate before the run.**
+  New `strategy_validation.py`: `validate_for_run()` returns
+  `StrategyValidation` (a tuple of `ValidationIssue`s, each with a severity
+  and a stable code) and refuses the run when an error is present.
+  **Errors and warnings are different things on purpose**: an error means
+  the run cannot mean anything (a warm-up longer than the sample, so no
+  candle will ever be enough), a warning means it can but the user should
+  know (the warm-up eats most of the sample). The checks cover
+  configuration, parameters (chapter 33.4 schema), required indicators,
+  timeframe grammar and consistency, warm-up, market compatibility, and
+  impossible or contradictory rules — identical entry and exit, conditions
+  between two constants, and bounds that cannot both hold. None of them
+  calls `on_candle`, so the strategy's streaming state is untouched.
+  Wired into `run_backtest` (errors become an `ApplicationError` listing
+  every reason, warnings are kept on `BacktestRun.validation` and printed by
+  the CLI) and into `run_live_paper_session` (no sample yet, so only the
+  sample-independent checks). Documented in
+  `docs/en/developers/strategy-validation.md`; 8 boxes ticked in chapter
+  33.7. Fixed in the same change: `ParameterSpec(kind="int")` used to accept
+  the string and fail later inside `coerce()` with a misleading message; the
+  kind is now coerced at the declaration.
+
 - **Chapter 33.5 (signal generation) closed — the decision, written down.**
   New `signals.py`: `SignalType` is the chapter's vocabulary (`enter_long`,
   `exit_long`, `enter_short`, `exit_short`, `hold`, `no_signal`) and `Signal`

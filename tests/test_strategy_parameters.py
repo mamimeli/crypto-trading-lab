@@ -43,6 +43,15 @@ def test_a_whole_number_is_accepted_and_coerced():
     assert _spec().coerce(20.0) == 20
 
 
+def test_a_string_kind_is_coerced_and_an_unknown_one_is_refused():
+    """Schemas are written by hand and stored as JSON, where the kind is
+    ``"int"``; an unknown name must fail at the declaration, not later
+    inside ``coerce()`` where it looked like an allowed-values problem."""
+    assert _spec(kind="int").kind is ParameterType.INT
+    with pytest.raises(ParameterError, match="unknown type"):
+        _spec(kind="integer")
+
+
 def test_a_fractional_number_is_not_a_whole_number():
     with pytest.raises(ParameterError, match="whole number"):
         _spec().coerce(2.5)

@@ -139,7 +139,7 @@ task order is in `AGENT-HANDOFF.md` §5.2.
 | 30 | [~] | 14 | 11 | No | Market precision and exchange rules |
 | 31 | [~] | 23 | 6 | No | Technical indicators |
 | 32 | [~] | 18 | 16 | No | Financial charts |
-| 33 | [~] | 29 | 57 | No | Strategies |
+| 33 | [~] | 37 | 49 | No | Strategies |
 | 34 | [ ] | 0 | 24 | No | Visual strategy builder |
 | 35 | [~] | 9 | 3 | Yes | Strategy complexity control |
 | 36 | [~] | 4 | 15 | No | Strategy registry |
@@ -2269,14 +2269,45 @@ Broker / Exchange
 
 Before a strategy can be backtested or paper-traded:
 
-* [ ] Validate its configuration.
-* [ ] Validate its required indicators.
-* [ ] Validate its timeframe.
-* [ ] Validate its warm-up period.
-* [ ] Validate its market compatibility.
-* [ ] Validate all parameters.
-* [ ] Detect impossible or contradictory rules.
-* [ ] Report warnings before execution.
+* [x] Validate its configuration.
+* [x] Validate its required indicators.
+* [x] Validate its timeframe.
+* [x] Validate its warm-up period.
+* [x] Validate its market compatibility.
+* [x] Validate all parameters.
+* [x] Detect impossible or contradictory rules.
+* [x] Report warnings before execution.
+
+**Implemented 2026-10-31.** `strategy_validation.py` is the gate between "I
+have a strategy object" and "the engine may spend candles on it":
+`validate_for_run()` returns a `StrategyValidation` of `ValidationIssue`s,
+each with a severity and a stable code. **Errors and warnings are different
+things on purpose** — an error means the run cannot mean anything (the
+warm-up is longer than the sample, so no candle will ever be enough), a
+warning means it can but the user should know (the warm-up eats most of the
+sample).
+
+The checks read what the strategy *declares*; none of them calls
+`on_candle`, because doing so would mutate the strategy's streaming state
+before the real run — the silent interference chapter 33.4 forbids. Rules
+are inspected through `operand_indicator()`, so a rule asking for
+`sma(50)` on ten candles is refused before it starts, and two conditions
+that cannot both hold (`close > 100` and `close < 50`, or `close > 100`
+and `close < 100`) are refused as contradictions rather than run and
+ignored.
+
+Wired into both halves of the chapter: `run_backtest` (the application use
+case) validates against the loaded candles, refuses with every reason in
+one message and keeps the warnings on `BacktestRun.validation` so the CLI
+prints them; `run_live_paper_session` validates what does not need a
+sample — configuration, market and timeframe form — because the candles
+have not arrived yet. Documented in
+`docs/en/developers/strategy-validation.md`.
+
+One defect found while writing the tests and fixed in the same change:
+`ParameterSpec(kind="int")` used to accept the string and then fail later
+inside `coerce()` with a misleading "not one of" message. The kind is now
+coerced in `__post_init__`, and an unknown name says so.
 
 ### 33.8 Strategy research warnings
 

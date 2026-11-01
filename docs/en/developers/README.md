@@ -37,6 +37,7 @@ If you are new, read in this order:
 | [`strategy-complexity.md`](strategy-complexity.md) | work on chapter 35 — what a strategy version declares, and why simpler wins a tie |
 | [`strategy-parameters.md`](strategy-parameters.md) | work on chapter 33.4 — declared parameters, validation and what ran |
 | [`signal-records.md`](signal-records.md) | work on chapter 33.5 — the signal vocabulary and the record the engine writes per candle |
+| [`strategy-validation.md`](strategy-validation.md) | work on chapter 33.7 — what is checked before a run, and why errors and warnings differ |
 | [`afml-techniques.md`](afml-techniques.md) | implement anything from chapters 47–50 (read it **before** coding) |
 | [`reference-projects.md`](reference-projects.md) | study the eight vendored reference projects and what was learned |
 | [`adr/`](adr/) | understand why a past decision was made (0001–0007) |

@@ -15,14 +15,14 @@ A new AI Agent must read this file **before** doing anything else, then
 - **Repository:** `https://github.com/wachin/crypto-trading-lab`
   (branch `main`)
 - **State verified at commit:** the commit that carries this file.
-- **Tests:** 1071 passed, 2 skipped, **exit code 0** —
+- **Tests:** 1102 passed, 2 skipped, **exit code 0** —
   `QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q`
   (The exit code matters: the suite used to segfault while the interpreter
   shut down, so it printed "passed" and still failed the build. See §5.)
-- **CI:** `tests` is **green on `main`**, but **not yet at 1071**: the last
+- **CI:** `tests` is **green on `main`**, but **not yet at 1102**: the last
   observed green run reports 990/2 on `ubuntu-24.04` with pip and carries
-  **no annotations**. The chapter 35, 33.4 and 33.5 changes add 81 tests in
-  total (990 → 1071) and have only been
+  **no annotations**. The chapter 35, 33.4, 33.5 and 33.7 changes add 112
+  tests in total (990 → 1102) and have only been
   measured locally (Windows, Python 3.12). The history is at
   [actions/workflows/tests.yml](https://github.com/wachin/crypto-trading-lab/actions/workflows/tests.yml).
   The first green run was `38777456963` (2026-10-15); the suite had never
@@ -30,7 +30,7 @@ A new AI Agent must read this file **before** doing anything else, then
 - **Verified platforms:** Debian 13 (system packages, Python 3.13.5) and
   **Windows 10** (pip/PyPI, Python 3.14.7, 2026-10-01 — clean install, the
   window opens, identical numbers, `ccxt` reaches the network). The Windows
-  path was re-measured on 2026-10-31 with **Python 3.12**: 1071/2, after two
+  path was re-measured on 2026-10-31 with **Python 3.12**: 1102/2, after two
   platform assumptions in the suite were fixed (see §5.2 item 10).
 - **macOS — deferred by the maintainer's decision, not a pending task.** It
   comes last, once the program works on Linux and Windows. Do not spend a
@@ -82,7 +82,9 @@ A new AI Agent must read this file **before** doing anything else, then
   day (§5.2 item 13): every decision is now a frozen `Signal` record with the
   strategy id and version, market, timeframe, type, the indicator values it
   was taken on and the parameter signature — and hold is no longer the same
-  value as no signal.
+  value as no signal. Chapter 33.7 (validation) closed the same day (§5.2
+  item 14): a strategy is checked against the data before a run, errors
+  refuse it and warnings travel with the result.
   **Real trading remains disabled by default.**
 
 ### What changed on 2026-09-19 (direction correction + Fase A/B)
@@ -550,6 +552,23 @@ features the code did not ship. Concretely:
     enforced rather than described) — or 33.7 (strategy validation before a run:
     configuration, indicators, timeframe, warm-up, market compatibility), which
     is the natural neighbour of what was just built.
+14. ~~**Chapter 33.7 — strategy validation.**~~ **DONE 2026-10-31** (same stage
+    as items 11–13). `strategy_validation.py` is the gate before a run:
+    `validate_for_run()` checks configuration, parameters (the chapter 33.4
+    schema), required indicators, timeframe grammar and consistency, warm-up,
+    market compatibility and impossible or contradictory rules, returning
+    `ValidationIssue`s with a severity and a stable code. Errors refuse the
+    run; warnings are kept on `BacktestRun.validation` and printed by the CLI.
+    Nothing calls `on_candle`, so validation cannot disturb the strategy's
+    streaming state. Wired into `run_backtest` (with the loaded candles) and
+    into `run_live_paper_session` (no sample yet, so only the
+    sample-independent checks). Chapter 33.7 is fully `[x]`; chapter 33
+    overall is `[~]` at 37 of 86 boxes, with 33.1–33.3, 33.6, 33.8 and 33.9
+    still open. Docs: `docs/en/developers/strategy-validation.md`.
+    **Next task:** chapter 33.6 (enforce the signal → risk → order flow: no
+    strategy reaches an exchange, the risk manager or credentials) — it is the
+    last structural box in chapter 33 and can be checked by a boundary test
+    over the strategy modules plus the engine's hand-off to `RiskManager`.
 
 Anything in `ROADMAP.md` marked `[ ]` or `[~]` is fair game. The roadmap is
 the specification; this list is only the recommended order.
@@ -575,7 +594,7 @@ git submodule update --init external/freqtrade
 # 2. Verify the environment:
 python3 --version            # ≥ 3.11 expected (3.13 on record)
 python3 -c "import PyQt6, pyqtgraph, sqlalchemy, platformdirs; print('deps OK')"
-QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1071 passed, 2 skipped expected
+QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1102 passed, 2 skipped expected
 
 # 3. Read in this order:
 #    1. AGENT-HANDOFF.md (this file) — state and next steps
@@ -589,4 +608,4 @@ If the test count differs, stop and report it before changing anything.
 
 ---
 
-*Handoff updated 2026-10-31. Baseline: 1071 passed, 2 skipped.*
+*Handoff updated 2026-10-31. Baseline: 1102 passed, 2 skipped.*

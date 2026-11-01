@@ -46,6 +46,11 @@ from crypto_trading_lab.education.curriculum import (
 )
 from crypto_trading_lab.market_data.historical import DatasetVersion
 from crypto_trading_lab.market_data.importer import parse_csv
+from crypto_trading_lab.strategy_validation import (
+    StrategyValidation,
+    StrategyValidationError,
+    validate_for_run,
+)
 
 __all__ = [
     "REQUIRED_MODULES",
@@ -289,6 +294,9 @@ class BacktestRun:
     report: PerformanceReport
     dataset: DatasetVersion | None
     candle_count: int
+    #: What chapter 33.7 found before the run. Warnings do not block it, so
+    #: they travel with the result and the CLI prints them.
+    validation: "StrategyValidation | None" = None
 
 
 def load_config_file(path: str | Path) -> dict[str, Any]:
@@ -580,6 +588,15 @@ def run_backtest_file(
             "Import a CSV first, or widen the symbol/interval filters."
         )
 
+    # Chapter 33.7: validate before spending the sample on the run.
+    validation = validate_for_run(
+        strategy, candles=candles, market=symbol, timeframe=interval
+    )
+    try:
+        validation.raise_for_errors()
+    except StrategyValidationError as exc:
+        raise ApplicationError(f"the strategy cannot run:\n{exc}") from exc
+
     result = run_backtest(candles, strategy, config, dataset=(DatasetProvenance.from_dataset_version(dataset) if dataset is not None else None))
 
     benchmark_name = str(payload.get("benchmark", "buy_and_hold")).lower()
@@ -604,6 +621,7 @@ def run_backtest_file(
         report=report,
         dataset=dataset,
         candle_count=len(candles),
+        validation=validation,
     )
 
 
@@ -684,6 +702,17 @@ def run_live_paper_session(
         raise ApplicationError(
             f"strategy {strategy_id!r} has no factory and cannot run"
         )
+
+    # Chapter 33.7, live half: the candles have not arrived yet, so only the
+    # checks that do not need a sample can run — configuration, market and
+    # timeframe form. The warm-up is reported after the session instead.
+    live_validation = validate_for_run(
+        strategy, candles=None, market=symbol, timeframe=interval
+    )
+    try:
+        live_validation.raise_for_errors()
+    except StrategyValidationError as exc:
+        raise ApplicationError(f"the strategy cannot run:\n{exc}") from exc
 
     config = LivePaperConfig(
         endpoints=endpoints,

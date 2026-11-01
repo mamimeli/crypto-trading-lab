@@ -175,6 +175,41 @@ def test_the_backtest_rejects_an_impossible_parameter_pair(paths, tmp_path):
     assert "fast must be smaller than slow" in str(error.value)
 
 
+def test_the_backtest_refuses_a_strategy_whose_warmup_cannot_fit(paths, tmp_path):
+    """Chapter 33.7: no candle will ever be enough, so do not spend the run."""
+    application.import_csv_file(
+        write_candles(tmp_path / "candles.csv", count=240), paths=paths
+    )
+    config = write_config(
+        tmp_path / "strategy.json",
+        {"strategy": "ma_crossover", "fast": 10, "slow": 500},
+    )
+
+    with pytest.raises(application.ApplicationError) as error:
+        application.run_backtest_file(config, paths=paths)
+    message = str(error.value)
+    assert "can never act" in message
+    assert "warmup" in message
+
+
+def test_the_backtest_keeps_the_warnings_validation_raised(paths, tmp_path):
+    """A warning does not stop the run; it travels with the result."""
+    application.import_csv_file(
+        write_candles(tmp_path / "candles.csv", count=240), paths=paths
+    )
+    config = write_config(
+        tmp_path / "strategy.json",
+        {"strategy": "ma_crossover", "fast": 5, "slow": 150},
+    )
+
+    run = application.run_backtest_file(config, paths=paths)
+
+    assert run.validation is not None
+    assert run.validation.ok
+    assert any("warm-up eats" in issue.message for issue in run.validation.warnings)
+
+
+
 def test_backtest_benchmark_can_be_disabled(paths, tmp_path):
     application.import_csv_file(
         write_candles(tmp_path / "candles.csv"), paths=paths

@@ -182,6 +182,11 @@ def _print_backtest(run: application.BacktestRun) -> None:
             f"({run.dataset.symbol} {run.dataset.interval})"
         )
     print(f"Candles: {run.candle_count}")
+    # Chapter 33.7: what validation saw before the run. Errors never get this
+    # far; warnings are shown with the result they apply to.
+    if run.validation is not None:
+        for warning in run.validation.warnings:
+            print(f"Warning: {warning.message}")
     parameters = run.result.config_metadata.get("strategy_parameters")
     if parameters:
         print(f"Parameters: {parameters}")

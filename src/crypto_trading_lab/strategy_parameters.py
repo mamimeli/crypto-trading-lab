@@ -81,6 +81,18 @@ class ParameterSpec:
     def __post_init__(self) -> None:
         if not self.name.strip():
             raise ParameterError("a parameter needs a name")
+        # ``kind`` is declared as the enum, but the registry's JSON form says
+        # "int" and so does every caller writing a schema by hand. Coercing it
+        # here means a plain string works, while an unknown one fails at the
+        # declaration instead of silently falling through ``coerce()``.
+        if not isinstance(self.kind, ParameterType):
+            try:
+                object.__setattr__(self, "kind", ParameterType(str(self.kind)))
+            except ValueError as error:
+                known = ", ".join(kind.value for kind in ParameterType)
+                raise ParameterError(
+                    f"{self.name}: unknown type {self.kind!r}; use one of {known}"
+                ) from error
         if self.kind is ParameterType.CHOICE and not self.allowed:
             raise ParameterError(
                 f"{self.name}: a choice parameter needs the values it allows"
