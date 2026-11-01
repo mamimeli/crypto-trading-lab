@@ -6,6 +6,7 @@ arithmetic, the no-look-ahead guarantee, and determinism.
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -204,6 +205,38 @@ def test_config_metadata_recorded():
     assert meta["execution_model"] == "next_open"
     assert meta["intrabar_policy"] == "conservative"
     assert "taker_fee" in meta and "slippage_fraction" in meta
+
+
+def test_a_strategy_that_rewrites_its_own_parameters_fails_the_run():
+    """Chapter 33.4: parameters must never change inside a run."""
+
+    @dataclasses.dataclass
+    class Shifty:
+        fast: int = 5
+        version: str = "1.0.0"
+
+        @property
+        def name(self):
+            return "shifty"
+
+        @property
+        def warmup_candles(self):
+            return 0
+
+        def on_candle(self, index, candles):
+            if index == 3:
+                self.fast = 9
+            return None
+
+    with pytest.raises(ValueError, match="changed its own parameters"):
+        run_backtest(_candles([1, 2, 3, 4, 5, 6]), Shifty())
+
+
+def test_the_guard_ignores_a_strategy_internal_streaming_state():
+    """The moving averages keep updating; that is not a parameter change."""
+    result = run_backtest(_candles([1, 2, 3, 4, 5, 6, 7, 8]), MACrossoverStrategy(fast=2, slow=3))
+
+    assert result.candle_count == 8
 
 
 def test_slippage_and_spread_worsen_fills():

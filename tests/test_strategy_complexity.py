@@ -272,7 +272,9 @@ def test_the_registry_round_trips_the_complexity_record(tmp_path):
         version="1.2.3",
         author="tester",
         description="declares a structure",
-        parameters_schema={"period": {"type": "int", "min": 5, "max": 20}},
+        parameters_schema={
+            "period": {"type": "int", "min": 5, "max": 20, "default": 10}
+        },
         structure={"rules": 2, "indicators": 1, "filters": 1, "conditions": 3},
     )
 
@@ -296,7 +298,9 @@ def test_a_new_version_recomputes_the_parameter_grid(tmp_path):
         version="1.0.0",
         author="tester",
         description="one parameter",
-        parameters_schema={"period": {"type": "int", "min": 1, "max": 10}},
+        parameters_schema={
+            "period": {"type": "int", "min": 1, "max": 10, "default": 5}
+        },
         structure={"rules": 1, "conditions": 1},
     )
 
@@ -304,8 +308,8 @@ def test_a_new_version_recomputes_the_parameter_grid(tmp_path):
         "custom",
         version="1.1.0",
         parameters_schema={
-            "period": {"type": "int", "min": 1, "max": 10},
-            "threshold": {"type": "int", "min": 1, "max": 5},
+            "period": {"type": "int", "min": 1, "max": 10, "default": 5},
+            "threshold": {"type": "int", "min": 1, "max": 5, "default": 3},
         },
     )
 

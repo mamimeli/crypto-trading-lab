@@ -479,32 +479,18 @@ def run_backtest_file(
             f"{', '.join(sorted(allowed))}"
         )
 
-    params: dict[str, Any] = {}
-    for key, spec in schema.items():
-        if key not in payload:
-            continue
-        expected = spec.get("type", "int")
-        raw = payload[key]
-        try:
-            params[key] = int(raw) if expected == "int" else raw
-        except (TypeError, ValueError) as exc:
-            raise ApplicationError(
-                f"{key} must be an integer, got {raw!r}"
-            ) from exc
-        minimum = spec.get("min")
-        maximum = spec.get("max")
-        if minimum is not None and params[key] < minimum:
-            raise ApplicationError(f"{key} must be at least {minimum}")
-        if maximum is not None and params[key] > maximum:
-            raise ApplicationError(f"{key} must be at most {maximum}")
+    # Chapter 33.4: the registry owns the parameter contract — types, bounds
+    # and cross-parameter rules — so this layer must not re-implement them.
+    params = {key: payload[key] for key in schema if key in payload}
 
     try:
         strategy = registry.create_instance(strategy_id, **params)
+        parameters = registry.parameter_set(strategy_id, **params)
     except (TypeError, ValueError) as exc:
         raise ApplicationError(
             f"could not create strategy {strategy_id!r}: {exc}"
         ) from exc
-    if strategy is None:
+    if strategy is None or parameters is None:
         raise ApplicationError(
             f"strategy {strategy_id!r} has no factory and cannot run"
         )
@@ -562,6 +548,7 @@ def run_backtest_file(
         costs=costs,
         execution_config=execution_config,
         execution_seed=execution_seed,
+        strategy_parameters=parameters.signature(),
     )
 
     symbol = payload.get("symbol")

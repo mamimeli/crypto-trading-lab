@@ -182,6 +182,9 @@ def _print_backtest(run: application.BacktestRun) -> None:
             f"({run.dataset.symbol} {run.dataset.interval})"
         )
     print(f"Candles: {run.candle_count}")
+    parameters = run.result.config_metadata.get("strategy_parameters")
+    if parameters:
+        print(f"Parameters: {parameters}")
     print(f"Execution model: {run.config.execution_realism_name()}")
     if run.config.execution_config is not None:
         print(f"Execution seed: {run.config.execution_seed}")

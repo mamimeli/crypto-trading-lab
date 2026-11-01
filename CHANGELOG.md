@@ -14,6 +14,27 @@ per-chapter state of the specification, see [`ROADMAP.md`](ROADMAP.md).
 
 ### Added
 
+- **Chapter 33.4 (parameters) closed — a contract instead of a bag of
+  kwargs.** New `strategy_parameters.py`: `ParameterSpec` (name, kind,
+  default, bounds, allowed values, description, rule text), `ParameterSchema`
+  (the specs one version declares plus `CombinationRule`s for checks no
+  single parameter can express) and `ParameterSet` (validated, frozen, with
+  a `signature()`). `StrategyRegistry.create_instance()` and
+  `parameter_set()` validate through the schema, so every entry point is
+  covered: values are coerced (`"20"` → `20`, `True` is rejected as a
+  number), bounds and combinations are enforced (`fast < slow`,
+  `oversold < overbought`) and a misspelt parameter raises instead of being
+  swallowed. `application.py` stopped re-implementing those checks by hand.
+  What ran is recorded: `ma_crossover@1.0.0(fast=5, slow=20)` goes into
+  `BacktestConfig.strategy_parameters`, lands in the result metadata and the
+  CLI prints it. `run_backtest()` snapshots the strategy's dataclass fields
+  and raises if a strategy rewrites them mid-run, so a parameter cannot move
+  silently even by the strategy's own hand. Documented in
+  `docs/en/developers/strategy-parameters.md`; 11 boxes ticked in chapter
+  33.4, with the two limits (combination rules do not survive JSON; a stored
+  schema without a default falls back to the strategy's own checks) written
+  in the chapter and the doc.
+
 - **Chapter 35 (strategy complexity) advanced — the record, and where it is
   shown.** `complexity_control.py` now separates two questions it used to
   blur: the code-level maintainability analyzer (cyclomatic complexity,

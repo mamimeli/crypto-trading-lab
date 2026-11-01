@@ -23,6 +23,7 @@ Two execution models are available to a run (chapter 56.5):
 
 from __future__ import annotations
 
+import dataclasses
 import enum
 import random
 from dataclasses import dataclass, field
@@ -110,6 +111,10 @@ class BacktestConfig:
     #: Seed for the execution model (chapter 37.8 determinism). The same
     #: seed and the same candles reproduce the same fills.
     execution_seed: int = 42
+    #: Chapter 33.4: which strategy parameters produced this result, as
+    #: ``strategy@version(name=value, ...)``. Recorded so a result can always
+    #: be traced back to the configuration that made it.
+    strategy_parameters: str = ""
 
     def execution_realism_name(self) -> str:
         """Which execution model this run used (chapter 56.2)."""
@@ -118,7 +123,7 @@ class BacktestConfig:
         return "chapter_56_execution_realism"
 
     def metadata(self) -> dict[str, str]:
-        return {
+        data = {
             "initial_capital": str(self.initial_capital),
             "position_fraction": str(self.position_fraction),
             "maker_fee": str(self.costs.maker_fee),
@@ -136,6 +141,9 @@ class BacktestConfig:
             "quantity_step": str(self.quantity_step),
             "min_notional": str(self.min_notional),
         }
+        if self.strategy_parameters:
+            data["strategy_parameters"] = self.strategy_parameters
+        return data
 
 
 @dataclass(frozen=True)
@@ -447,6 +455,42 @@ def _reported_costs(
     return Decimal(0), (price - reference).copy_abs() * quantity
 
 
+def _parameter_snapshot(strategy: Strategy) -> dict[str, object]:
+    """The declared parameters of a dataclass strategy, as they are now.
+
+    Only dataclass fields are read, so a strategy's internal streaming state
+    (which is supposed to change) is never confused with a parameter.
+    """
+    if not dataclasses.is_dataclass(strategy):
+        return {}
+    return {
+        field.name: getattr(strategy, field.name)
+        for field in dataclasses.fields(strategy)
+    }
+
+
+def _assert_parameters_unchanged(
+    strategy: Strategy, before: dict[str, object]
+) -> None:
+    """Fail loudly if the strategy rewrote its own parameters (chapter 33.4)."""
+    after = _parameter_snapshot(strategy)
+    changed = {
+        name: (value, after.get(name))
+        for name, value in before.items()
+        if after.get(name) != value
+    }
+    if not changed:
+        return
+    detail = ", ".join(
+        f"{name}: {old!r} -> {new!r}" for name, (old, new) in changed.items()
+    )
+    raise ValueError(
+        "the strategy changed its own parameters during the backtest "
+        f"({detail}); chapter 33.4 forbids parameters changing inside a run. "
+        "Build a new instance with the values you want instead."
+    )
+
+
 def run_backtest(
     candles: Sequence[Candle],
     strategy: Strategy,
@@ -488,6 +532,8 @@ def run_backtest(
     interval_seconds = _interval_seconds(candles)
 
     pending_signal: OrderSide | None = None  # filled at NEXT open
+
+    parameter_snapshot = _parameter_snapshot(strategy)
 
     for index in range(len(candles)):
         current = candles[index]
@@ -626,6 +672,11 @@ def run_backtest(
             pending_signal = signal
 
     final_equity = cash + position * candles[-1].close
+
+    # Chapter 33.4: a strategy must not change its own parameters mid-run.
+    # Checking at the end costs nothing per candle and turns a silent
+    # change into a loud failure — the result would be untrustworthy.
+    _assert_parameters_unchanged(strategy, parameter_snapshot)
 
     return BacktestResult(
         strategy_name=strategy.name,

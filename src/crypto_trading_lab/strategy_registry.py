@@ -11,12 +11,18 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Type
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Type
 
 from crypto_trading_lab.backtesting.engine import Strategy
 from crypto_trading_lab.complexity_control import (
     StrategyComplexity,
     strategy_complexity_from_schema,
+)
+from crypto_trading_lab.strategy_parameters import (
+    CombinationRule,
+    ParameterError,
+    ParameterSchema,
+    ParameterSet,
 )
 
 
@@ -37,6 +43,11 @@ class StrategyMetadata:
     #: Chapter 35 metrics, recorded per strategy version. ``None`` only for
     #: entries imported from a file written before the field existed.
     complexity: Optional[StrategyComplexity] = None
+    #: Chapter 33.4: the typed, validated view of ``parameters_schema``.
+    #: Its combination rules are Python callables, so they do not survive a
+    #: JSON round trip; an imported entry is validated parameter by parameter
+    #: only (see ``StrategyRegistry._load``).
+    parameter_schema: Optional[ParameterSchema] = None
 
 
 @dataclass
@@ -46,6 +57,47 @@ class StrategyRegistration:
     factory: Callable[..., Strategy]
     source_path: Optional[str] = None
     is_builtin: bool = False
+
+
+def _fast_below_slow(values: Dict[str, Any]) -> Optional[str]:
+    if values["fast"] >= values["slow"]:
+        return (
+            "fast must be smaller than slow; with fast >= slow the "
+            "'fast' average is not faster and the crossover means nothing"
+        )
+    return None
+
+
+def _oversold_below_overbought(values: Dict[str, Any]) -> Optional[str]:
+    if values["oversold"] >= values["overbought"]:
+        return (
+            "oversold must be smaller than overbought; otherwise the entry "
+            "and exit thresholds are inverted and every signal fires at once"
+        )
+    return None
+
+
+#: The chapter 33.4 checks that no single parameter can express.
+fast_below_slow = CombinationRule("fast < slow", _fast_below_slow)
+oversold_below_overbought = CombinationRule(
+    "oversold < overbought", _oversold_below_overbought
+)
+
+
+def _typed_schema_or_none(
+    parameters_schema: Dict[str, Dict[str, Any]]
+) -> Optional[ParameterSchema]:
+    """The typed schema, or ``None`` when the stored one cannot be typed.
+
+    A schema stored before chapter 33.4 may have no ``default``, which the
+    typed model rejects by design (a parameter must declare one). Refusing to
+    load the whole registry over that would be worse than falling back to the
+    strategy's own checks, so the fallback is explicit here.
+    """
+    try:
+        return ParameterSchema.from_mapping(parameters_schema)
+    except ParameterError:
+        return None
 
 
 class StrategyRegistry:
@@ -85,22 +137,28 @@ class StrategyRegistry:
                 "fast": {"type": "int", "min": 1, "max": 200, "default": 10, "description": "Fast SMA period"},
                 "slow": {"type": "int", "min": 1, "max": 500, "default": 30, "description": "Slow SMA period"},
             }, "Moving Average Crossover Strategy", "Built-in",
-             {"rules": 2, "indicators": 2, "filters": 0, "conditions": 2}),
+             {"rules": 2, "indicators": 2, "filters": 0, "conditions": 2},
+             (fast_below_slow,)),
             ("buy_and_hold", BuyAndHoldStrategy, {}, "Buy and Hold Strategy", "Built-in",
-             {"rules": 1, "indicators": 0, "filters": 0, "conditions": 0}),
+             {"rules": 1, "indicators": 0, "filters": 0, "conditions": 0},
+             ()),
             ("null_strategy", NullStrategy, {}, "Null Strategy (never trades)", "Built-in",
-             {"rules": 0, "indicators": 0, "filters": 0, "conditions": 0}),
+             {"rules": 0, "indicators": 0, "filters": 0, "conditions": 0},
+             ()),
             ("rsi", RSIStrategy, {"period": {"type": "int", "min": 1, "max": 200, "default": 14, "description": "RSI period"}, "oversold": {"type": "int", "min": 1, "max": 99, "default": 30, "description": "Oversold level"}, "overbought": {"type": "int", "min": 2, "max": 99, "default": 70, "description": "Overbought level"}, "volume_filter_period": {"type": "int", "min": 0, "max": 200, "default": 0, "description": "Volume-filter SMA period (0 disables)"}, "trend_filter_period": {"type": "int", "min": 0, "max": 500, "default": 0, "description": "Trend-filter SMA period (0 disables)"}, "cooldown": {"type": "int", "min": 0, "max": 500, "default": 0, "description": "Candles to wait after an exit"}}, "RSI Strategy (configurable filters)", "Built-in",
              # RSI + the volume average + the trend average; three filters:
              # volume, trend and the cooldown after an exit.
-             {"rules": 2, "indicators": 3, "filters": 3, "conditions": 2}),
+             {"rules": 2, "indicators": 3, "filters": 3, "conditions": 2},
+             (oversold_below_overbought,)),
             ("breakout", RollingHighLowBreakoutStrategy, {"period": {"type": "int", "min": 2, "max": 500, "default": 20, "description": "Lookback bars for the rolling range"}}, "Rolling High/Low Breakout Strategy", "Built-in",
-             {"rules": 2, "indicators": 2, "filters": 0, "conditions": 2}),
+             {"rules": 2, "indicators": 2, "filters": 0, "conditions": 2},
+             ()),
             ("bollinger", BollingerBandsMeanReversionStrategy, {"period": {"type": "int", "min": 1, "max": 500, "default": 20, "description": "Bollinger SMA period"}, "k": {"type": "int", "min": 1, "max": 10, "default": 2, "description": "Number of standard deviations"}}, "Bollinger Bands Mean Reversion Strategy", "Built-in",
-             {"rules": 2, "indicators": 3, "filters": 0, "conditions": 2}),
+             {"rules": 2, "indicators": 3, "filters": 0, "conditions": 2},
+             ()),
         ]
 
-        for strategy_id, factory, params, desc, author, structure in builtins:
+        for strategy_id, factory, params, desc, author, structure, rules in builtins:
             self.register(
                 strategy_id=strategy_id,
                 factory=factory,
@@ -110,6 +168,7 @@ class StrategyRegistry:
                 description=desc,
                 parameters_schema=params,
                 structure=structure,
+                combination_rules=rules,
                 is_builtin=True,
             )
 
@@ -128,6 +187,7 @@ class StrategyRegistry:
         source_path: str = None,
         is_builtin: bool = False,
         structure: Optional[Dict[str, int]] = None,
+        combination_rules: Sequence[CombinationRule] = (),
     ) -> StrategyRegistration:
         """Register a new strategy.
 
@@ -136,9 +196,17 @@ class StrategyRegistry:
         conditions); the parameter count and the size of the parameter grid
         are derived from the schema itself. A strategy that declares nothing
         still gets a truthful record — with zeros where it declared nothing.
+
+        ``combination_rules`` are the chapter 33.4 checks no single parameter
+        can express (``fast < slow``). They run in :meth:`create_instance`,
+        before the strategy is built.
         """
         if strategy_id in self._strategies and self._strategies[strategy_id].metadata.is_builtin:
             raise ValueError(f"Cannot overwrite built-in strategy: {strategy_id}")
+
+        parameter_schema = ParameterSchema.from_mapping(
+            parameters_schema, rules=combination_rules
+        )
 
         declared = dict(structure or {})
         complexity = strategy_complexity_from_schema(
@@ -165,6 +233,7 @@ class StrategyRegistry:
             dependencies=dependencies or set(),
             min_data_requirements=min_data_requirements or {},
             complexity=complexity,
+            parameter_schema=parameter_schema,
         )
 
         registration = StrategyRegistration(
@@ -210,11 +279,40 @@ class StrategyRegistry:
         return results
 
     def create_instance(self, strategy_id: str, **params) -> Optional[Strategy]:
-        """Create a strategy instance with parameters."""
+        """Create a strategy instance with parameters.
+
+        Parameters are validated against the chapter 33.4 schema first —
+        types are coerced, bounds are checked and invalid combinations are
+        rejected — so a strategy never starts with values it cannot run.
+        Missing parameters take their declared default.
+        """
         factory = self.get_factory(strategy_id)
         if not factory:
             return None
+        registration = self._strategies.get(strategy_id)
+        schema = registration.metadata.parameter_schema if registration else None
+        if schema is not None:
+            params = schema.validate(params)
         return factory(**params)
+
+    def parameter_set(
+        self, strategy_id: str, **params
+    ) -> Optional[ParameterSet]:
+        """The validated, frozen parameters for a strategy version.
+
+        The same gate :meth:`create_instance` uses, returned as an object
+        whose ``signature()`` records exactly what ran (chapter 33.4).
+        """
+        registration = self._strategies.get(strategy_id)
+        if registration is None:
+            return None
+        schema = registration.metadata.parameter_schema
+        values = schema.validate(params) if schema is not None else dict(params)
+        return ParameterSet(
+            strategy_id=strategy_id,
+            version=registration.metadata.version,
+            values=values,
+        )
 
     def update_metadata(self, strategy_id: str, **kwargs) -> bool:
         """Update strategy metadata."""
@@ -256,6 +354,14 @@ class StrategyRegistry:
             dependencies=updates.get("dependencies", metadata.dependencies),
             min_data_requirements=updates.get("min_data_requirements", metadata.min_data_requirements),
             complexity=complexity,
+            parameter_schema=ParameterSchema.from_mapping(
+                schema,
+                rules=(
+                    metadata.parameter_schema.rules
+                    if metadata.parameter_schema is not None
+                    else ()
+                ),
+            ),
         )
 
         self._strategies[strategy_id] = StrategyRegistration(
@@ -339,6 +445,16 @@ class StrategyRegistry:
                     StrategyComplexity.from_dict(meta["complexity"])
                     if meta.get("complexity")
                     else None
+                ),
+                # Combination rules are callables and JSON cannot carry them,
+                # so an imported strategy is validated parameter by parameter
+                # until the code that owns it registers it again. A stored
+                # schema that declares no default (an older or hand-edited
+                # file) cannot become a typed schema at all: it keeps
+                # `parameter_schema=None` and the strategy's own checks apply,
+                # instead of failing to load the whole registry.
+                parameter_schema=_typed_schema_or_none(
+                    meta["parameters_schema"]
                 ),
             )
             # Note: factory not restored from JSON - must be re-registered

@@ -15,11 +15,11 @@ A new AI Agent must read this file **before** doing anything else, then
 - **Repository:** `https://github.com/wachin/crypto-trading-lab`
   (branch `main`)
 - **State verified at commit:** the commit that carries this file.
-- **Tests:** 1015 passed, 2 skipped, **exit code 0** —
+- **Tests:** 1052 passed, 2 skipped, **exit code 0** —
   `QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q`
   (The exit code matters: the suite used to segfault while the interpreter
   shut down, so it printed "passed" and still failed the build. See §5.)
-- **CI:** `tests` is **green on `main`**, but **not yet at 1015**: the last
+- **CI:** `tests` is **green on `main`**, but **not yet at 1052**: the last
   observed green run reports 990/2 on `ubuntu-24.04` with pip and carries
   **no annotations**. The chapter 35 change adds 25 tests and has only been
   measured locally (Windows, Python 3.12). The history is at
@@ -29,7 +29,7 @@ A new AI Agent must read this file **before** doing anything else, then
 - **Verified platforms:** Debian 13 (system packages, Python 3.13.5) and
   **Windows 10** (pip/PyPI, Python 3.14.7, 2026-10-01 — clean install, the
   window opens, identical numbers, `ccxt` reaches the network). The Windows
-  path was re-measured on 2026-10-31 with **Python 3.12**: 1015/2, after two
+  path was re-measured on 2026-10-31 with **Python 3.12**: 1052/2, after two
   platform assumptions in the suite were fixed (see §5.2 item 10).
 - **macOS — deferred by the maintainer's decision, not a pending task.** It
   comes last, once the program works on Linux and Windows. Do not spend a
@@ -75,7 +75,9 @@ A new AI Agent must read this file **before** doing anything else, then
   Chapter 35 (strategy complexity) advanced on 2026-10-31 (§5.2 item 11):
   every strategy version now records its parameters, rules, indicators,
   filters, conditions, grid size and model size, and qualification shows
-  them instead of a boolean.
+  them instead of a boolean. Chapter 33.4 (parameters) closed the same day
+  (§5.2 item 12): parameters are a declared, validated contract and the run
+  records which values produced it.
   **Real trading remains disabled by default.**
 
 ### What changed on 2026-09-19 (direction correction + Fase A/B)
@@ -507,6 +509,22 @@ features the code did not ship. Concretely:
     **Next task:** chapters 33.1–33.9 (strategy identity, market
     requirements, declared parameters, signal record) or 34 (the visual
     builder's remaining blocks: filters and arithmetic are rejected today).
+12. ~~**Chapter 33.4 — parameters.**~~ **DONE 2026-10-31** (same stage as
+    item 11). `strategy_parameters.py` declares the contract
+    (`ParameterSpec`), the per-version schema with cross-parameter rules
+    (`ParameterSchema`, `CombinationRule`) and the frozen validated values
+    (`ParameterSet`, `signature()`). The registry validates in
+    `create_instance()`/`parameter_set()`, so CLI, GUI and services share one
+    gate; `application.py` no longer coerces parameters by hand; the
+    backtest records `strategy_parameters` in its metadata and the CLI prints
+    it; and `run_backtest()` raises if a strategy rewrites its own dataclass
+    fields mid-run. Chapter 33.4 is fully `[x]`; chapter 33 overall is `[~]`
+    with 33.1–33.3 and 33.5–33.9 still open. Docs:
+    `docs/en/developers/strategy-parameters.md`.
+    **Next task:** chapter 33.5 (explicit signal records: timestamp, strategy
+    id and version, market, timeframe, type, indicator values, parameter
+    signature) — it is the natural follow-up because `ParameterSet.signature()`
+    is exactly the parameter-set identifier the signal must carry.
 
 Anything in `ROADMAP.md` marked `[ ]` or `[~]` is fair game. The roadmap is
 the specification; this list is only the recommended order.
@@ -532,7 +550,7 @@ git submodule update --init external/freqtrade
 # 2. Verify the environment:
 python3 --version            # ≥ 3.11 expected (3.13 on record)
 python3 -c "import PyQt6, pyqtgraph, sqlalchemy, platformdirs; print('deps OK')"
-QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1015 passed, 2 skipped expected
+QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1052 passed, 2 skipped expected
 
 # 3. Read in this order:
 #    1. AGENT-HANDOFF.md (this file) — state and next steps
@@ -546,4 +564,4 @@ If the test count differs, stop and report it before changing anything.
 
 ---
 
-*Handoff updated 2026-10-31. Baseline: 1015 passed, 2 skipped.*
+*Handoff updated 2026-10-31. Baseline: 1052 passed, 2 skipped.*

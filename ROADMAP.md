@@ -139,7 +139,7 @@ task order is in `AGENT-HANDOFF.md` §5.2.
 | 30 | [~] | 14 | 11 | No | Market precision and exchange rules |
 | 31 | [~] | 23 | 6 | No | Technical indicators |
 | 32 | [~] | 18 | 16 | No | Financial charts |
-| 33 | [~] | 6 | 80 | No | Strategies |
+| 33 | [~] | 17 | 69 | No | Strategies |
 | 34 | [ ] | 0 | 24 | No | Visual strategy builder |
 | 35 | [~] | 9 | 3 | Yes | Strategy complexity control |
 | 36 | [~] | 4 | 15 | No | Strategy registry |
@@ -2153,17 +2153,46 @@ Each strategy must declare:
 
 Every configurable parameter must define:
 
-* [ ] Name.
-* [ ] Type.
-* [ ] Default value.
-* [ ] Minimum value.
-* [ ] Maximum value.
-* [ ] Allowed values where applicable.
-* [ ] Description.
-* [ ] Validation rules.
-* [ ] Parameters must be versioned with the strategy.
-* [ ] Invalid parameter combinations must be rejected before execution.
-* [ ] Strategy parameters must never silently change during a backtest or live session.
+* [x] Name.
+* [x] Type.
+* [x] Default value.
+* [x] Minimum value.
+* [x] Maximum value.
+* [x] Allowed values where applicable.
+* [x] Description.
+* [x] Validation rules.
+* [x] Parameters must be versioned with the strategy.
+* [x] Invalid parameter combinations must be rejected before execution.
+* [x] Strategy parameters must never silently change during a backtest or live session.
+
+**Implemented 2026-10-31.** `strategy_parameters.py` holds the contract:
+`ParameterSpec` (name, kind, default, bounds, allowed values, description,
+rule text), `ParameterSchema` (the specs one version declares, plus
+`CombinationRule`s for checks no single parameter can express) and
+`ParameterSet` (validated, frozen, with a `signature()`).
+
+`StrategyRegistry.create_instance()` and `parameter_set()` validate through
+the schema, so every entry point — CLI, GUI, application services — is
+covered: values are coerced (`"20"` → `20`, `True` is rejected as a number),
+bounds and combinations are enforced (`fast < slow`, `oversold <
+overbought`), and a misspelt parameter raises instead of being swallowed.
+The application layer stopped re-implementing those checks by hand.
+
+The values that ran are recorded: `ParameterSet.signature()` →
+`ma_crossover@1.0.0(fast=5, slow=20)` goes into
+`BacktestConfig.strategy_parameters`, lands in
+`BacktestResult.config_metadata`, and the CLI prints it. The set is frozen,
+and `run_backtest()` snapshots the strategy's dataclass fields before the
+loop and raises if they changed, so a parameter cannot move silently even by
+the strategy's own hand (internal streaming state is not a dataclass field
+and is not confused with a parameter).
+
+Two limits, stated so they are not mistaken for gaps: combination rules are
+callables and do not survive the JSON round trip (an imported strategy is
+validated parameter by parameter until its owner registers it again), and a
+stored schema with no `default` keeps `parameter_schema=None` rather than
+refusing to load the registry. Documented in
+`docs/en/developers/strategy-parameters.md`.
 
 ### 33.5 Signal generation
 

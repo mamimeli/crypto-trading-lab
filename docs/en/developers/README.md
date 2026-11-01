@@ -35,6 +35,7 @@ If you are new, read in this order:
 | [`live-monitoring.md`](live-monitoring.md) | work on chapter 62 (live health, alerts) |
 | [`live-vs-backtest-drift.md`](live-vs-backtest-drift.md) | work on chapter 63 drift thresholds and interpretation |
 | [`strategy-complexity.md`](strategy-complexity.md) | work on chapter 35 — what a strategy version declares, and why simpler wins a tie |
+| [`strategy-parameters.md`](strategy-parameters.md) | work on chapter 33.4 — declared parameters, validation and what ran |
 | [`afml-techniques.md`](afml-techniques.md) | implement anything from chapters 47–50 (read it **before** coding) |
 | [`reference-projects.md`](reference-projects.md) | study the eight vendored reference projects and what was learned |
 | [`adr/`](adr/) | understand why a past decision was made (0001–0007) |

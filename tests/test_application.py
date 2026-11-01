@@ -144,6 +144,37 @@ def test_backtest_runs_over_imported_candles(paths, tmp_path):
     assert run.report.benchmark.benchmark_name == "Buy and hold"
 
 
+def test_the_backtest_records_which_parameters_ran(paths, tmp_path):
+    """Chapter 33.4: a result must be traceable to the parameters used."""
+    application.import_csv_file(
+        write_candles(tmp_path / "candles.csv"), paths=paths
+    )
+    config = write_config(
+        tmp_path / "strategy.json",
+        {"strategy": "ma_crossover", "fast": 5, "slow": 20},
+    )
+
+    run = application.run_backtest_file(config, paths=paths)
+
+    recorded = run.result.config_metadata["strategy_parameters"]
+    assert recorded == "ma_crossover@1.0.0(fast=5, slow=20)"
+
+
+def test_the_backtest_rejects_an_impossible_parameter_pair(paths, tmp_path):
+    """Chapter 33.4: invalid combinations die before execution, not during."""
+    application.import_csv_file(
+        write_candles(tmp_path / "candles.csv"), paths=paths
+    )
+    config = write_config(
+        tmp_path / "strategy.json",
+        {"strategy": "ma_crossover", "fast": 30, "slow": 10},
+    )
+
+    with pytest.raises(application.ApplicationError) as error:
+        application.run_backtest_file(config, paths=paths)
+    assert "fast must be smaller than slow" in str(error.value)
+
+
 def test_backtest_benchmark_can_be_disabled(paths, tmp_path):
     application.import_csv_file(
         write_candles(tmp_path / "candles.csv"), paths=paths
