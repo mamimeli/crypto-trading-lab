@@ -196,6 +196,14 @@ def test_list_strategies_explain_answers_the_beginner_questions(
     assert "Known weaknesses:" in output
     assert "Risk warnings:" in output
     assert output.index("Risk warnings:") < output.index("What it tries to do:")
+    # Chapter 33.2: the markets and data it can use, between identity and
+    # behaviour.
+    assert "Market requirements (chapter 33.2):" in output
+    assert "Supported asset types: spot" in output
+    assert "Required market-data fields:" in output
+    assert output.index("Market requirements (chapter 33.2):") < output.index(
+        "What it tries to do:"
+    )
     # It explains one strategy, not all of them.
     assert "Null strategy" not in output
 

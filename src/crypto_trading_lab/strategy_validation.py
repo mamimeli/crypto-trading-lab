@@ -41,6 +41,12 @@ from enum import Enum
 from typing import Any, Optional, Sequence
 
 from crypto_trading_lab.domain.models import Candle, Symbol
+from crypto_trading_lab.market_requirements import (
+    ENGINE_TRADING_MODE,
+    MarketRequirements,
+    TIMEFRAME_RE,
+    market_requirements_for,
+)
 from crypto_trading_lab.rule_strategy import RuleStrategySpec, operand_indicator
 
 __all__ = [
@@ -51,10 +57,6 @@ __all__ = [
     "validate_for_run",
     "TIMEFRAME_RE",
 ]
-
-#: The interval grammar the project uses: ``1m``, ``15m``, ``4h``, ``1d``,
-#: ``1w``. Seconds are accepted because exchanges publish ``30s`` feeds.
-TIMEFRAME_RE = re.compile(r"^(\d+)([smhdw])$")
 
 _COMPARISONS = (">", ">=", "<", "<=")
 _NUMBER_RE = re.compile(r"^-?\d+(\.\d+)?$")
@@ -139,6 +141,7 @@ def validate_for_run(
     timeframe: Optional[str] = None,
     schema: Any = None,
     rule_spec: Optional[RuleStrategySpec] = None,
+    market_requirements: Optional[MarketRequirements] = None,
 ) -> StrategyValidation:
     """Check a strategy against the data it is about to run on.
 
@@ -148,12 +151,25 @@ def validate_for_run(
     :class:`~crypto_trading_lab.strategy_parameters.ParameterSchema` when the
     caller has one; parameters are normally already validated by the
     registry, so this is a second opinion rather than the gate.
+
+    ``market_requirements`` is the chapter 33.2 record. When the caller does
+    not pass one (the common case), it is looked up by the strategy's
+    ``identifier`` — so built-in strategies are checked automatically and
+    strategies without a record are simply skipped rather than rejected.
     """
+    if market_requirements is None:
+        market_requirements = market_requirements_for(
+            getattr(strategy, "identifier", None)
+        )
     issues: list[ValidationIssue] = []
     issues.extend(_check_configuration(strategy))
     issues.extend(_check_parameters(schema))
     issues.extend(_check_market(market, candles))
     issues.extend(_check_timeframe(timeframe, candles))
+    if market_requirements is not None:
+        issues.extend(
+            _check_market_requirements(market_requirements, market, timeframe)
+        )
     if candles is not None:
         issues.extend(_check_warmup(strategy, len(candles)))
         issues.extend(_check_indicators(strategy, rule_spec, len(candles)))
@@ -209,6 +225,77 @@ def _check_configuration(strategy: Any) -> list[ValidationIssue]:
                 f"warmup_candles must be a non-negative integer, got {warmup!r}",
             )
         )
+    return issues
+
+
+def _check_market_requirements(
+    requirements: MarketRequirements,
+    market: Optional[str],
+    timeframe: Optional[str],
+) -> list[ValidationIssue]:
+    """Chapter 33.2: the strategy's stated needs versus what it is given.
+
+    These are *declaration* checks. None of them runs the strategy: they
+    compare what the strategy said it needs against the market and timeframe
+    the caller provided. The minimum-sample gate is deliberately *not* here:
+    a parametrised strategy's true minimum is its ``warmup_candles`` (which
+    depends on the parameters), so chapter 33.7's warm-up check owns that
+    gate and stays correct for every configuration. ``min_data_required`` is
+    therefore a documented figure for the default configuration, not a
+    second floor. The deeper check — that ``indicator_values()`` actually
+    returns the indicators a strategy lists — lives in the test suite,
+    because verifying it at runtime would mean calling into the strategy's
+    streaming state before the real run (chapter 33.7 forbids that).
+    """
+    issues: list[ValidationIssue] = []
+
+    # The engine can only trade one asset type today. A strategy that does
+    # not include it cannot run here, and saying so beats a mid-run surprise.
+    if ENGINE_TRADING_MODE not in requirements.asset_types:
+        issues.append(
+            _error(
+                "market",
+                f"the strategy supports {', '.join(requirements.asset_types)} "
+                f"but the engine only trades {ENGINE_TRADING_MODE}; it cannot "
+                "run in this program",
+            )
+        )
+
+    # A strategy may restrict itself to named markets. "any" means it accepts
+    # every market of a supported asset type, so there is nothing to check.
+    # A malformed market is already an error from ``_check_market``; only
+    # compare once the symbol string is known to parse.
+    if market is not None and "any" not in requirements.compatible_markets:
+        try:
+            requested = str(Symbol(market))
+        except (TypeError, ValueError):
+            requested = None
+        if requested is not None and requested not in requirements.compatible_markets:
+            issues.append(
+                _error(
+                    "market",
+                    f"the strategy is restricted to "
+                    f"{', '.join(requirements.compatible_markets)} but was asked "
+                    f"to run on {market}",
+                )
+            )
+
+    # A strategy tuned for one interval is a warning, not a refusal — it may
+    # still behave, just not as designed.
+    if (
+        timeframe is not None
+        and requirements.required_timeframe is not None
+        and timeframe != requirements.required_timeframe
+    ):
+        issues.append(
+            _warning(
+                "market",
+                f"the strategy is designed for {requirements.required_timeframe} "
+                f"but was asked to run on {timeframe}; its parameters may not "
+                "fit the interval",
+            )
+        )
+
     return issues
 
 

@@ -15,14 +15,14 @@ A new AI Agent must read this file **before** doing anything else, then
 - **Repository:** `https://github.com/wachin/crypto-trading-lab`
   (branch `main`)
 - **State verified at commit:** the commit that carries this file.
-- **Tests:** 1207 passed, 2 skipped, **exit code 0** —
+- **Tests:** 1228 passed, 2 skipped, **exit code 0** —
   `QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q`
   (The exit code matters: the suite used to segfault while the interpreter
   shut down, so it printed "passed" and still failed the build. See §5.)
-- **CI:** `tests` is **green on `main`**, but **not yet at 1207**: the last
+- **CI:** `tests` is **green on `main`**, but **not yet at 1228**: the last
   observed green run reports 990/2 on `ubuntu-24.04` with pip and carries
   **no annotations**. The chapter 35, 33.4, 33.5, 33.6, 33.7, 33.8 and 33.9
-  changes add 217 tests in total (990 → 1207) and have only been
+  changes add 217 tests in total (990 → 1228) and have only been
   measured locally (Windows, Python 3.12). The history is at
   [actions/workflows/tests.yml](https://github.com/wachin/crypto-trading-lab/actions/workflows/tests.yml).
   The first green run was `38777456963` (2026-10-15); the suite had never
@@ -30,15 +30,15 @@ A new AI Agent must read this file **before** doing anything else, then
 - **Verified platforms:** Debian 13 (system packages, Python 3.13.5) and
   **Windows 10** (pip/PyPI, Python 3.14.7, 2026-10-01 — clean install, the
   window opens, identical numbers, `ccxt` reaches the network). The Windows
-  path was re-measured on 2026-10-31 with **Python 3.12**: 1207/2, after two
+  path was re-measured on 2026-10-31 with **Python 3.12**: 1228/2, after two
   platform assumptions in the suite were fixed (see §5.2 item 10).
 - **macOS — deferred by the maintainer's decision, not a pending task.** It
   comes last, once the program works on Linux and Windows. Do not spend a
   session on it and do not treat a macOS failure as a blocker. The steps are
   prepared in `README.md` and `docs/en/developers/venv-setup.md`; the
   manual `cross-platform` workflow can measure it when its turn arrives.
-- **Source:** 112 Python files under `src/crypto_trading_lab/`
-- **Tests:** 87 test modules under `tests/`
+- **Source:** 113 Python files under `src/crypto_trading_lab/`
+- **Tests:** 88 test modules under `tests/`
 - **Documentation:** `docs/en/beginners/` and
   `docs/en/developers/` (virtualenv guide in `venv-setup.md`, audit in
   `unwired-modules-audit.md`)
@@ -636,15 +636,30 @@ features the code did not ship. Concretely:
     one risk warning. `StrategyMetadata.category` survives the JSON round trip.
     Visible in `list-strategies`, in `list-strategies --explain ID` (identity
     before guide) and in the Backtesting Lab report. Chapter 33 is `[~]` at 67
-    of 86 boxes; **33.2 (market requirements) and 33.3 (trading rules)
-    remain**, plus 33.8's seventh box and 33.5's two short-boxes.
-    **Next task:** chapter 33.2 — compatible markets, asset types, required
-    timeframe, required data fields, required indicators, warm-up and minimum
-    history. Half of it is already recorded and unused
-    (`StrategyMetadata.min_data_requirements`, `warmup_candles` on every
-    strategy), so the work is to declare it per strategy and make chapter 33.7
-    check it against the loaded data instead of against the strategy's own
-    number.
+    of 86 boxes; 33.3 (trading rules) remains, plus 33.8's seventh box and
+    33.5's two short-side boxes.
+
+19. ~~**Chapter 33.2 — market requirements.**~~ **DONE 2026-11-01** (same
+    stage as items 11–18). `market_requirements.py` declares the seven
+    chapter-33.2 facts for all six built-ins as one frozen
+    `MarketRequirements` record (compatible markets, asset types, required
+    timeframe, required fields, required indicators, the warm-up being the
+    strategy's `warmup_candles`, and the minimum-history figure for the
+    default configuration). `validate_for_run` reads it — looked up by
+    identifier when the caller does not pass one — and refuses a run a
+    strategy cannot use: an asset type set that omits the engine's only mode
+    (`spot`), or a market the strategy is restricted away from. The
+    minimum-history field is documentation, not a second gate; a parametrised
+    strategy's true minimum is its warm-up, so the runtime gate stays the
+    chapter 33.7 warm-up check. The check that `indicator_values()` returns the
+    declared indicators lives in `test_strategy_market_requirements.py` on real
+    instances. Visible in `list-strategies --explain ID` (a Market requirements
+    block between identity and guide), the Backtesting Lab report, and
+    `docs/en/beginners/strategy-guides.md`. All seven boxes ticked; chapter 33
+    is `[~]` at 74 of 86. **Next task:** chapter 33.3 (trading rules — entry,
+    exit, invalidation, stops, take-profit, trailing stops, cooldown, time
+    restrictions, position sizing) and, still open, 33.8's seventh box
+    (`prefer_simpler` has no caller) and 33.5's two short-side boxes.
 
 Anything in `ROADMAP.md` marked `[ ]` or `[~]` is fair game. The roadmap is
 the specification; this list is only the recommended order.
@@ -670,7 +685,7 @@ git submodule update --init external/freqtrade
 # 2. Verify the environment:
 python3 --version            # ≥ 3.11 expected (3.13 on record)
 python3 -c "import PyQt6, pyqtgraph, sqlalchemy, platformdirs; print('deps OK')"
-QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1207 passed, 2 skipped expected
+QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1228 passed, 2 skipped expected
 
 # 3. Read in this order:
 #    1. AGENT-HANDOFF.md (this file) — state and next steps
@@ -684,4 +699,4 @@ If the test count differs, stop and report it before changing anything.
 
 ---
 
-*Handoff updated 2026-10-31. Baseline: 1207 passed, 2 skipped.*
+*Handoff updated 2026-10-31. Baseline: 1228 passed, 2 skipped.*

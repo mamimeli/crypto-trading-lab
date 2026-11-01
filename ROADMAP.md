@@ -139,7 +139,7 @@ task order is in `AGENT-HANDOFF.md` §5.2.
 | 30 | [~] | 14 | 11 | No | Market precision and exchange rules |
 | 31 | [~] | 23 | 6 | No | Technical indicators |
 | 32 | [~] | 18 | 16 | No | Financial charts |
-| 33 | [~] | 67 | 19 | No | Strategies |
+| 33 | [~] | 74 | 12 | No | Strategies |
 | 34 | [ ] | 0 | 24 | No | Visual strategy builder |
 | 35 | [~] | 9 | 3 | Yes | Strategy complexity control |
 | 36 | [~] | 4 | 15 | No | Strategy registry |
@@ -2160,13 +2160,13 @@ use. Documented in `docs/en/developers/strategy-identity.md`.
 
 ### 33.2 Market requirements
 
-* [ ] Compatible markets.
-* [ ] Supported asset types.
-* [ ] Required timeframe.
-* [ ] Required market-data fields.
-* [ ] Required indicators.
-* [ ] Warm-up period.
-* [ ] Minimum amount of historical data required.
+* [x] Compatible markets.
+* [x] Supported asset types.
+* [x] Required timeframe.
+* [x] Required market-data fields.
+* [x] Required indicators.
+* [x] Warm-up period.
+* [x] Minimum amount of historical data required.
 
 ### 33.3 Trading rules
 

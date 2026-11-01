@@ -37,6 +37,39 @@ different stories.
 
 ---
 
+## What each strategy needs from the market (chapter 33.2)
+
+Before a strategy runs, it must say what it can run on. ROADMAP
+chapter 33.2 asks for seven declarations; six of them are stated here,
+and the seventh — the warm-up period — is the strategy's own
+`warmup_candles` attribute, which chapter 33.7 checks before every run.
+
+"Any market" means any spot `BASE/QUOTE` pair. All built-ins are
+long-only spot, so none is restricted to a single symbol, but the
+declaration is what lets the program refuse a strategy that was built
+for a market it cannot trade. "Required fields" are the candle fields
+the strategy reads; "Required indicators" are the values its signals
+record (chapter 33.5). "Minimum data" is the *default* configuration's
+warm-up — the runtime gate is the actual warm-up, which rises with the
+parameters.
+
+| Strategy | Asset types | Compatible markets | Required fields | Required indicators | Min. data (default) |
+| --- | --- | --- | --- | --- | --- |
+| `ma_crossover` | spot | any | open, close | sma_fast, sma_slow | 31 |
+| `rsi` | spot | any | close, volume | rsi | 15 |
+| `breakout` | spot | any | close, high, low | rolling_high, rolling_low | 21 |
+| `bollinger` | spot | any | close | middle, upper, lower | 20 |
+| `buy_and_hold` | spot | any | close | — | 2 |
+| `null_strategy` | spot | any | — | — | 0 |
+
+These declarations are not decoration. They are the difference between a
+backtest that tells you "this strategy could not have used this data"
+and one that quietly reports a number from data the strategy was never
+built for. The same text is printed by `list-strategies --explain` and
+in the Backtesting Lab report, generated from `market_requirements.py`.
+
+---
+
 ## Questions 6 and 7, answered once
 
 Sizing and stops belong to the **engine**, not to any one strategy.

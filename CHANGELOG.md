@@ -64,6 +64,30 @@ per-chapter state of the specification, see [`ROADMAP.md`](ROADMAP.md).
   `test_every_builtin_strategy_has_a_guide` compares the guide set against the
   registry, so that gap cannot reach a user unnoticed.
 
+- **Chapter 33.2 (market requirements) closed — a strategy must say what it
+  can run on.** New `market_requirements.py` holds one frozen
+  `MarketRequirements` per built-in strategy with the seven declarations the
+  chapter asks for: compatible markets, supported asset types, required
+  timeframe, required market-data fields, required indicators, the warm-up
+  (the strategy's own `warmup_candles` attribute, not duplicated here) and the
+  minimum historical data. Closed sets everywhere — an unknown asset type, an
+  unsupported field or a malformed timeframe is rejected at construction, not
+  discovered mid-run. `validate_for_run` now reads the record (looked up by
+  the strategy identifier when the caller does not pass one) and refuses a run
+  a strategy cannot use: a strategy whose asset types omit the engine's only
+  mode (`spot`), or one restricted to a market it was not asked for. The
+  minimum-data field is *documentation* of the default configuration, not a
+  second gate — a parametrised strategy's true minimum is its warm-up, which
+  rises with its parameters, so the runtime gate is the chapter 33.7 warm-up
+  check and stays correct for every configuration. The deeper check that
+  `indicator_values()` actually returns the declared indicators lives in
+  `tests/test_strategy_market_requirements.py` on real strategy instances,
+  because verifying it inside validation would touch the strategy's streaming
+  state before the real run. Visible in `list-strategies --explain ID` (a
+  "Market requirements" block between identity and the guide), the Backtesting
+  Lab report, and `docs/en/beginners/strategy-guides.md`. All seven boxes
+  ticked; chapter 33 is at 74 of 86.
+
 - **Chapter 33.8 (research warnings) — the caveats that travel with the
   number.** New `research_warnings.py` holds the chapter's seven statements
   as constants, because a warning paraphrased differently on every screen is

@@ -67,6 +67,10 @@ from crypto_trading_lab.strategy_guide import (
     render as render_guide,
 )
 from crypto_trading_lab.strategy_identity import identity_for
+from crypto_trading_lab.market_requirements import (
+    market_requirements_for,
+    render_market_requirements,
+)
 
 STRATEGY_SMA = "ma_crossover"
 STRATEGY_BUY_HOLD = "buy_and_hold"
@@ -889,6 +893,15 @@ class BacktestingLabWidget(QWidget):
             lines.extend(f"  - {item}" for item in identity.known_weaknesses)
             lines.append(self.tr("Risk warnings:"))
             lines.extend(f"  - {item}" for item in identity.risk_warnings)
+            lines.append("")
+        # Chapter 33.2: the markets and data it can actually use, so the
+        # reader knows when a result does not apply to their market.
+        requirements = market_requirements_for(strategy_id)
+        if requirements is not None:
+            lines.append(self.tr("Market requirements (chapter 33.2):"))
+            lines.extend(
+                render_market_requirements(requirements).splitlines()
+            )
             lines.append("")
         lines.extend([render_guide(guide), ""])
         return lines
