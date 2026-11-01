@@ -16,6 +16,7 @@ from typing import Any, Sequence
 
 from crypto_trading_lab import __version__
 from crypto_trading_lab import application
+from crypto_trading_lab.strategy_guide import GUIDES, guide_for, render
 
 #: How each doctor status is shown.
 _STATUS_LABEL = {
@@ -107,11 +108,14 @@ def database_check(args: Any) -> int:
 
 
 def list_strategies(args: Any) -> int:
-    """List every registered strategy (chapter 36)."""
+    """List every registered strategy (chapter 36), or explain one (33.9)."""
     strategies = application.list_strategies(paths=getattr(args, "paths", None))
     if not strategies:
         print("No strategies are registered.", file=sys.stderr)
         return 1
+    explain = getattr(args, "explain", None)
+    if explain is not None:
+        return _explain_strategies(explain, strategies)
     print("Available Strategies:")
     for strategy in strategies:
         print(
@@ -119,6 +123,30 @@ def list_strategies(args: Any) -> int:
             f"Ver: {strategy.version})"
         )
     return 0
+
+
+def _explain_strategies(explain: str, strategies: Any) -> int:
+    """Print the chapter 33.9 guide for one strategy, or for all of them."""
+    wanted = (
+        [strategy.strategy_id for strategy in strategies]
+        if explain == "*"
+        else [explain]
+    )
+    explained = 0
+    for strategy_id in wanted:
+        guide = guide_for(strategy_id)
+        if guide is None:
+            known = ", ".join(sorted(GUIDES))
+            print(
+                f"No beginner guide for {strategy_id!r}; documented: {known}",
+                file=sys.stderr,
+            )
+            continue
+        if explained:
+            print()
+        print(render(guide))
+        explained += 1
+    return 0 if explained else 1
 
 
 def list_lessons(args: Any) -> int:
@@ -408,6 +436,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     list_strategies_parser = subparsers.add_parser(
         "list-strategies", help="List available strategies"
+    )
+    list_strategies_parser.add_argument(
+        "--explain",
+        nargs="?",
+        const="*",
+        default=None,
+        metavar="STRATEGY_ID",
+        help=(
+            "Explain what a strategy assumes, reads, enters and exits on "
+            "(chapter 33.9). With no id, explain every registered strategy."
+        ),
     )
     _add_paths_option(list_strategies_parser)
 

@@ -139,7 +139,7 @@ task order is in `AGENT-HANDOFF.md` §5.2.
 | 30 | [~] | 14 | 11 | No | Market precision and exchange rules |
 | 31 | [~] | 23 | 6 | No | Technical indicators |
 | 32 | [~] | 18 | 16 | No | Financial charts |
-| 33 | [~] | 48 | 38 | No | Strategies |
+| 33 | [~] | 58 | 28 | No | Strategies |
 | 34 | [ ] | 0 | 24 | No | Visual strategy builder |
 | 35 | [~] | 9 | 3 | Yes | Strategy complexity control |
 | 36 | [~] | 4 | 15 | No | Strategy registry |
@@ -2387,16 +2387,42 @@ chapter 35's two open boxes.
 
 Every strategy must explain:
 
-* [ ] What the strategy attempts to do.
-* [ ] What market behavior it assumes.
-* [ ] What indicators it uses.
-* [ ] What causes an entry.
-* [ ] What causes an exit.
-* [ ] How position sizing works.
-* [ ] How stop-loss and take-profit work.
-* [ ] What market conditions may favor it.
-* [ ] What market conditions may hurt it.
-* [ ] Why historical profitability does not guarantee future profitability.
+* [x] What the strategy attempts to do.
+* [x] What market behavior it assumes.
+* [x] What indicators it uses.
+* [x] What causes an entry.
+* [x] What causes an exit.
+* [x] How position sizing works.
+* [x] How stop-loss and take-profit work.
+* [x] What market conditions may favor it.
+* [x] What market conditions may hurt it.
+* [x] Why historical profitability does not guarantee future profitability.
+
+**Implemented 2026-10-31 (10 of 10).** `strategy_guide.py` answers the ten
+questions for all six built-in strategies as frozen `StrategyGuide` records,
+and `render()` turns one into the text a beginner reads. Sizing and stops are
+answered once, as module constants, because they belong to the engine rather
+than to any strategy: six paraphrases of the same paragraph would be six
+chances to disagree, and `test_sizing_and_stops_are_stated_once` pins that
+they are shared rather than copied.
+
+Three surfaces read the same records, so they cannot drift:
+
+* the CLI, through `list-strategies --explain [STRATEGY_ID]` (no id means
+  every registered strategy);
+* the Backtesting Lab report, under "What this strategy is trying to do",
+  printed before the money so the reader knows what the number describes;
+* `docs/en/beginners/strategy-guides.md`, linked from the beginner start
+  page.
+
+Two honesty details rather than completeness theatre. A custom rule has no
+static guide — it describes its own conditions — so the report prints the
+engine's sizing paragraph and the one stop rule that matters: stops are
+checked on candle **closes**, not intrabar extremes, so a wick passes through
+them unseen. And a strategy registered later without a guide prints "no
+beginner guide is written for this yet" instead of silently omitting the
+section; `test_every_builtin_strategy_has_a_guide` compares the guide set
+against the registry, so the gap cannot reach a user unnoticed.
 
 ---
 

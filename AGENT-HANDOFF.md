@@ -15,14 +15,14 @@ A new AI Agent must read this file **before** doing anything else, then
 - **Repository:** `https://github.com/wachin/crypto-trading-lab`
   (branch `main`)
 - **State verified at commit:** the commit that carries this file.
-- **Tests:** 1158 passed, 2 skipped, **exit code 0** —
+- **Tests:** 1182 passed, 2 skipped, **exit code 0** —
   `QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q`
   (The exit code matters: the suite used to segfault while the interpreter
   shut down, so it printed "passed" and still failed the build. See §5.)
-- **CI:** `tests` is **green on `main`**, but **not yet at 1158**: the last
+- **CI:** `tests` is **green on `main`**, but **not yet at 1182**: the last
   observed green run reports 990/2 on `ubuntu-24.04` with pip and carries
-  **no annotations**. The chapter 35, 33.4, 33.5, 33.6, 33.7 and 33.8 changes add 151
-  tests in total (990 → 1158) and have only been
+  **no annotations**. The chapter 35, 33.4, 33.5, 33.6, 33.7, 33.8 and 33.9
+  changes add 192 tests in total (990 → 1182) and have only been
   measured locally (Windows, Python 3.12). The history is at
   [actions/workflows/tests.yml](https://github.com/wachin/crypto-trading-lab/actions/workflows/tests.yml).
   The first green run was `38777456963` (2026-10-15); the suite had never
@@ -30,15 +30,15 @@ A new AI Agent must read this file **before** doing anything else, then
 - **Verified platforms:** Debian 13 (system packages, Python 3.13.5) and
   **Windows 10** (pip/PyPI, Python 3.14.7, 2026-10-01 — clean install, the
   window opens, identical numbers, `ccxt` reaches the network). The Windows
-  path was re-measured on 2026-10-31 with **Python 3.12**: 1158/2, after two
+  path was re-measured on 2026-10-31 with **Python 3.12**: 1182/2, after two
   platform assumptions in the suite were fixed (see §5.2 item 10).
 - **macOS — deferred by the maintainer's decision, not a pending task.** It
   comes last, once the program works on Linux and Windows. Do not spend a
   session on it and do not treat a macOS failure as a blocker. The steps are
   prepared in `README.md` and `docs/en/developers/venv-setup.md`; the
   manual `cross-platform` workflow can measure it when its turn arrives.
-- **Source:** 115 Python files under `src/crypto_trading_lab/`
-- **Tests:** 64 test modules under `tests/`
+- **Source:** 111 Python files under `src/crypto_trading_lab/`
+- **Tests:** 86 test modules under `tests/`
 - **Documentation:** `docs/en/beginners/` and
   `docs/en/developers/` (virtualenv guide in `venv-setup.md`, audit in
   `unwired-modules-audit.md`)
@@ -90,6 +90,9 @@ A new AI Agent must read this file **before** doing anything else, then
   an import scan instead of being asserted in prose. Chapter 33.8 (research
   warnings) advanced the same day (§5.2 item 16): the seven statements now
   live in one module and both the CLI and the GUI print the same text.
+  Chapter 33.9 (beginner documentation) closed the same day (§5.2 item 17):
+  every built-in strategy answers the ten questions from one module, read by
+  the CLI, the Backtesting Lab report and the beginner docs alike.
   **Real trading remains disabled by default.**
 
 ### What changed on 2026-09-19 (direction correction + Fase A/B)
@@ -606,11 +609,25 @@ features the code did not ship. Concretely:
     drift. **The seventh box stays open:** "favour simpler strategies when
     performance is comparable" needs a screen that compares two strategies,
     and `prefer_simpler` still has no caller — same honest state as chapter
-    35. Chapter 33 is `[~]` at 48 of 86 boxes; 33.1–33.3 and 33.9 remain.
-    **Next task:** chapter 33.9 (per-strategy beginner documentation: what it
-    assumes, what it reads, what makes it enter and exit, when it hurts) —
-    it is the last piece of chapter 33 that is not structural, and the
-    beginner docs already cover the shared vocabulary.
+    35.
+17. ~~**Chapter 33.9 — beginner documentation.**~~ **DONE 2026-10-31** (same
+    stage as items 11–16). `strategy_guide.py` answers the ten questions for
+    all six built-in strategies as frozen `StrategyGuide` records; `render()`
+    produces the text. Sizing and stops are shared constants because they
+    belong to the engine, not to a strategy. Three surfaces read the same
+    records: `list-strategies --explain [ID]`, the Backtesting Lab report
+    ("What this strategy is trying to do", printed before the money) and
+    `docs/en/beginners/strategy-guides.md`. A custom rule gets the engine's
+    sizing paragraph plus the honest stop caveat (stops are checked on candle
+    closes, so a wick passes through unseen), and an undocumented strategy
+    says so instead of omitting the section.
+    `test_every_builtin_strategy_has_a_guide` compares the guide set against
+    the registry. Chapter 33 is `[~]` at 58 of 86 boxes; **33.1–33.3 remain**
+    (strategy identity/metadata, compatible markets, and the trading-rule
+    vocabulary: entry/exit/invalidation/stops/cooldown/time restrictions),
+    and 33.8's seventh box plus 33.5's two short-boxes are still open.
+    **Next task:** chapter 33.1 — the strategy metadata contract — because
+    33.2 and 33.3 both extend it and the registry already half-declares it.
 
 Anything in `ROADMAP.md` marked `[ ]` or `[~]` is fair game. The roadmap is
 the specification; this list is only the recommended order.
@@ -636,7 +653,7 @@ git submodule update --init external/freqtrade
 # 2. Verify the environment:
 python3 --version            # ≥ 3.11 expected (3.13 on record)
 python3 -c "import PyQt6, pyqtgraph, sqlalchemy, platformdirs; print('deps OK')"
-QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1158 passed, 2 skipped expected
+QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1182 passed, 2 skipped expected
 
 # 3. Read in this order:
 #    1. AGENT-HANDOFF.md (this file) — state and next steps
@@ -650,4 +667,4 @@ If the test count differs, stop and report it before changing anything.
 
 ---
 
-*Handoff updated 2026-10-31. Baseline: 1158 passed, 2 skipped.*
+*Handoff updated 2026-10-31. Baseline: 1182 passed, 2 skipped.*

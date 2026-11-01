@@ -33,7 +33,7 @@ argument it runs the CLI.
 | `crypto-trading-lab database check` | Opens the SQLite file, runs `PRAGMA integrity_check`, prints the schema version and the row count of every table. A missing database is reported as missing — nothing is created. |
 | `crypto-trading-lab import-csv file.csv` | Validates the file with the chapter 28 parser and stores the candles. Invalid rows are rejected **before** the database is created. |
 | `crypto-trading-lab backtest strategy.yaml` | Loads stored candles and runs the chapter 37 engine plus the chapter 40 metric catalogue. |
-| `crypto-trading-lab list-strategies` | Lists the chapter 36 registry (built-ins and imported metadata). |
+| `crypto-trading-lab list-strategies` | Lists the chapter 36 registry (built-ins and imported metadata). `--explain` prints the chapter 33.9 beginner guide — one strategy if you name its id, all of them if you do not. |
 | `crypto-trading-lab list-lessons` | Lists the 48-lesson curriculum; `--level` 1, 2 or 3 filters it. |
 | `crypto-trading-lab glossary search "slippage"` | Searches the English beginner glossary; entry-name matches are listed first, definition matches after. Exit status 1 when nothing matches. |
 

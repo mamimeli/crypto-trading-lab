@@ -60,6 +60,12 @@ from crypto_trading_lab.rule_strategy import (
 
 from crypto_trading_lab.strategy_registry import StrategyRegistry
 from crypto_trading_lab.research_warnings import warnings_for_run
+from crypto_trading_lab.strategy_guide import (
+    SIZING,
+    STOPS_RULE,
+    guide_for,
+    render as render_guide,
+)
 
 STRATEGY_SMA = "ma_crossover"
 STRATEGY_BUY_HOLD = "buy_and_hold"
@@ -264,7 +270,8 @@ class BacktestingLabWidget(QWidget):
             complexity_recorded=complexity is not None,
         )
         text = self._render(result, report, benchmark_warning,
-                            benchmark_report, research_warnings)
+                            benchmark_report, research_warnings,
+                            strategy_id=kind)
         self.results_view.setPlainText(text)
         return text
 
@@ -722,7 +729,8 @@ class BacktestingLabWidget(QWidget):
 
     def _render(self, result, report, benchmark_warning: str | None = None,
                 benchmark_report=None,
-                research_warnings: tuple[str, ...] = ()) -> str:
+                research_warnings: tuple[str, ...] = (),
+                strategy_id: str = "") -> str:
         """Plain-language result report (chapters 37.9, 37.10, 40.8)."""
         r, s, risk, a = report.returns, report.trades, report.risk, report.activity
         lines = [
@@ -752,6 +760,11 @@ class BacktestingLabWidget(QWidget):
                 spread=result.config_metadata.get("spread_fraction"),
             ),
             "",
+        ]
+        # Chapter 33.9: the ten questions, answered next to the number they
+        # explain rather than in a manual nobody opens mid-decision.
+        lines.extend(self._guide_lines(strategy_id))
+        lines += [
             self.tr("== Money (all costs included) =="),
             self.tr("Initial capital: {x}").format(x=r.initial_capital),
             self.tr("Final equity: {x}").format(x=r.final_equity),
@@ -835,6 +848,39 @@ class BacktestingLabWidget(QWidget):
             DISCLAIMER,
         ]
         return "\n".join(lines)
+
+    def _guide_lines(self, strategy_id: str) -> list[str]:
+        """Chapter 33.9: what this strategy is trying to do, in plain words.
+
+        A strategy without a guide gets one honest line saying so instead of
+        a silently shorter report: a missing guide is a documentation gap the
+        reader deserves to see.
+        """
+        if strategy_id == STRATEGY_RULE:
+            return [
+                self.tr("== What this rule is trying to do =="),
+                self.tr("Sizing: {x}").format(x=SIZING),
+                self.tr("Stops: {x}").format(x=STOPS_RULE),
+                "",
+            ]
+        guide = guide_for(strategy_id)
+        if guide is None:
+            if not strategy_id:
+                return []
+            return [
+                self.tr("== What this strategy is trying to do =="),
+                self.tr(
+                    "  No beginner guide is written for “{x}” yet. Treat "
+                    "every number below as a description of the past that "
+                    "nobody has explained."
+                ).format(x=strategy_id),
+                "",
+            ]
+        return [
+            self.tr("== What this strategy is trying to do =="),
+            render_guide(guide),
+            "",
+        ]
 
     def _comparison_lines(self, report, benchmark_report) -> list[str]:
         """Relative benchmark comparison (chapter 42.2)."""

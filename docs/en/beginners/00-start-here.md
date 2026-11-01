@@ -84,6 +84,10 @@ Follow this order — each step prepares you for the next:
 5. Only after understanding fees, slippage, and risk should you run
    your first backtest — and expect the result to be worse than you
    imagined. That is normal, and it is the tool being honest with you.
+6. Before you trust any strategy — including one you built yourself —
+   read [every strategy, explained](strategy-guides.md). It answers
+   the ten questions a strategy has to answer: what it assumes, what
+   makes it enter and exit, and why a good backtest is not a promise.
 
 ## Why you should not use real money while learning
 

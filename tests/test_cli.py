@@ -172,6 +172,46 @@ def test_list_strategies_alias_still_works(tmp_path, capsys):
     assert "ma_crossover" in capsys.readouterr().out
 
 
+def test_list_strategies_explain_answers_the_beginner_questions(
+    tmp_path, capsys
+):
+    code = run(
+        [
+            "list-strategies",
+            "--explain",
+            "ma_crossover",
+            "--data-dir",
+            str(tmp_path / "data"),
+        ]
+    )
+    output = capsys.readouterr().out
+    assert code == 0
+    assert "What it tries to do:" in output
+    assert "Why a profitable backtest is not a promise:" in output
+    # It explains one strategy, not all of them.
+    assert "Null strategy" not in output
+
+
+def test_list_strategies_explain_without_an_id_covers_every_guide(
+    tmp_path, capsys
+):
+    code = run(["list-strategies", "--explain", "--data-dir", str(tmp_path / "data")])
+    output = capsys.readouterr().out
+    assert code == 0
+    assert "Moving average crossover" in output
+    assert "Buy and hold" in output
+    assert "Null strategy" in output
+
+
+def test_list_strategies_explain_rejects_an_unknown_id(tmp_path, capsys):
+    code = run(
+        ["list-strategies", "--explain", "nope", "--data-dir", str(tmp_path / "data")]
+    )
+    captured = capsys.readouterr()
+    assert code == 1
+    assert "No beginner guide for 'nope'" in captured.err
+
+
 def test_list_lessons_prints_the_curriculum(tmp_path, capsys):
     code = run(["list-lessons", "--data-dir", str(tmp_path / "data")])
     output = capsys.readouterr().out

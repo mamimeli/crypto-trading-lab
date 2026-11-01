@@ -96,6 +96,10 @@ def test_lab_runs_a_custom_rule_from_the_builder(qapp):
 
     assert "Loaded rule" in label
     assert "What was tested" in text
+    # Chapter 33.9: a declarative rule has no written guide, but the report
+    # still has to say how it sizes and how its stops are checked.
+    assert "== What this rule is trying to do ==" in text
+    assert "Stops: A rule can declare a stop-loss" in text
     assert lab._last_export is not None
     lab.close()
 

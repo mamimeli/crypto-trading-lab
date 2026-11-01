@@ -31,6 +31,23 @@ per-chapter state of the specification, see [`ROADMAP.md`](ROADMAP.md).
 
 ### Added
 
+- **Chapter 33.9 (beginner documentation) closed — every strategy answers
+  the ten questions.** New `strategy_guide.py` holds one frozen
+  `StrategyGuide` per built-in strategy, and `render()` turns it into the text
+  a beginner reads. Sizing and stops are module constants shared by all six,
+  because they belong to the engine: six paraphrases of the same paragraph
+  would be six chances to disagree. Three surfaces read the same records — the
+  CLI (`list-strategies --explain [ID]`, no id meaning all of them), the
+  Backtesting Lab report (a "What this strategy is trying to do" section
+  printed before the money, so the reader knows what the number describes) and
+  `docs/en/beginners/strategy-guides.md`. A custom rule gets the engine's
+  sizing paragraph and the one stop rule that matters (stops are checked on
+  candle closes, so a wick passes through unseen), and a strategy registered
+  later without a guide prints "no beginner guide is written for this yet"
+  instead of silently omitting the section.
+  `test_every_builtin_strategy_has_a_guide` compares the guide set against the
+  registry, so that gap cannot reach a user unnoticed.
+
 - **Chapter 33.8 (research warnings) — the caveats that travel with the
   number.** New `research_warnings.py` holds the chapter's seven statements
   as constants, because a warning paraphrased differently on every screen is

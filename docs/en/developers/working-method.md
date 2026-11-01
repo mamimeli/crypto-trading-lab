@@ -19,7 +19,7 @@ Before any commit, the full test suite must pass.
 QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q
 ```
 
-The baseline is **1158 passed, 2 skipped**. If tests fail, fix them before proceeding.
+The baseline is **1182 passed, 2 skipped**. If tests fail, fix them before proceeding.
 
 ### 3. Results shown honestly
 

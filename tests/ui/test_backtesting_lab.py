@@ -87,6 +87,15 @@ def test_results_show_all_mandatory_fields(lab):
         assert needle in text, needle
 
 
+def test_the_report_explains_what_the_strategy_assumes(lab):
+    # Chapter 33.9: the ten questions reach the GUI, not only the CLI.
+    text = lab.run_and_display()
+    assert "== What this strategy is trying to do ==" in text
+    assert "What it tries to do:" in text
+    assert "How position sizing works:" in text
+    assert "Why a profitable backtest is not a promise:" in text
+
+
 def test_beginner_explanation_and_honesty(lab):
     text = lab.run_and_display()
     # 37.10 + 40.8 mandatory explanations and disclaimers.
