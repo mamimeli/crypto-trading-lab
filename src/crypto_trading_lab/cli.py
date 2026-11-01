@@ -17,6 +17,7 @@ from typing import Any, Sequence
 from crypto_trading_lab import __version__
 from crypto_trading_lab import application
 from crypto_trading_lab.strategy_guide import GUIDES, guide_for, render
+from crypto_trading_lab.strategy_identity import identity_for, render_identity
 
 #: How each doctor status is shown.
 _STATUS_LABEL = {
@@ -118,15 +119,16 @@ def list_strategies(args: Any) -> int:
         return _explain_strategies(explain, strategies)
     print("Available Strategies:")
     for strategy in strategies:
+        category = getattr(strategy, "category", "") or "unclassified"
         print(
             f"- {strategy.name} (ID: {strategy.strategy_id}, "
-            f"Ver: {strategy.version})"
+            f"Ver: {strategy.version}, {category})"
         )
     return 0
 
 
 def _explain_strategies(explain: str, strategies: Any) -> int:
-    """Print the chapter 33.9 guide for one strategy, or for all of them."""
+    """Print the chapter 33.1 identity and the 33.9 guide of a strategy."""
     wanted = (
         [strategy.strategy_id for strategy in strategies]
         if explain == "*"
@@ -143,6 +145,12 @@ def _explain_strategies(explain: str, strategies: Any) -> int:
             )
             continue
         if explained:
+            print()
+        identity = identity_for(strategy_id)
+        if identity is not None:
+            # Chapter 33.1 first: who it is and what it confesses, before
+            # what it does.
+            print(render_identity(identity))
             print()
         print(render(guide))
         explained += 1

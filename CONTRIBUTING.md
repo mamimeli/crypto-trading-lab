@@ -47,7 +47,7 @@ git clone https://github.com/wachin/crypto-trading-lab
 cd crypto-trading-lab
 
 python3 -c "import pyqtgraph, sqlalchemy, platformdirs; print('deps OK')"
-QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # → 1182 passed, 2 skipped
+QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # → 1207 passed, 2 skipped
 PYTHONPATH=src python3 -m crypto_trading_lab            # run the app
 ```
 

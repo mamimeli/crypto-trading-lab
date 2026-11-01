@@ -139,7 +139,7 @@ task order is in `AGENT-HANDOFF.md` §5.2.
 | 30 | [~] | 14 | 11 | No | Market precision and exchange rules |
 | 31 | [~] | 23 | 6 | No | Technical indicators |
 | 32 | [~] | 18 | 16 | No | Financial charts |
-| 33 | [~] | 58 | 28 | No | Strategies |
+| 33 | [~] | 67 | 19 | No | Strategies |
 | 34 | [ ] | 0 | 24 | No | Visual strategy builder |
 | 35 | [~] | 9 | 3 | Yes | Strategy complexity control |
 | 36 | [~] | 4 | 15 | No | Strategy registry |
@@ -2117,15 +2117,46 @@ Each strategy must declare:
 
 ### 33.1 Identity
 
-* [ ] Name.
-* [ ] Unique identifier.
-* [ ] Version.
-* [ ] Author or source.
-* [ ] Description.
-* [ ] Strategy category.
-* [ ] Beginner-oriented explanation.
-* [ ] Known weaknesses.
-* [ ] Risk warnings.
+* [x] Name.
+* [x] Unique identifier.
+* [x] Version.
+* [x] Author or source.
+* [x] Description.
+* [x] Strategy category.
+* [x] Beginner-oriented explanation.
+* [x] Known weaknesses.
+* [x] Risk warnings.
+
+**Implemented 2026-10-31 (9 of 9).** `strategy_identity.py` holds one frozen
+`StrategyIdentity` per built-in strategy and is now the only place a built-in
+strategy is named. `_load_builtin_strategies` reads `name`, `version`,
+`author`, `description` and `category` from it, which retires the
+`strategy_id.replace("_", " ").title()` guess that produced "Ma Crossover"
+and the hand-typed descriptions that lived only inside the registry. The
+registry metadata gained `category`, exported and imported through JSON
+(empty for a file written before this change, which is the truth: not
+classified).
+
+The record validates itself: the identifier must match
+`^[a-z][a-z0-9_]*$`, the version must be `MAJOR.MINOR.PATCH`, the category must
+come from the closed `CATEGORIES` set, and at least one weakness and one risk
+warning must be declared — a strategy with nothing to confess is a strategy
+nobody reviewed.
+
+Weaknesses and risk warnings are deliberately separate fields. A weakness is
+where the strategy itself is fragile ("it cannot tell a trend from a range");
+a risk warning is what that fragility does to an account ("a drawdown can run
+further than you expect"). One merged list would let a strategy declare the
+mild version of each and skip the expensive one.
+
+Visible in three places: the category in `list-strategies`, the identity block
+in `list-strategies --explain ID` (printed before the chapter 33.9 guide,
+because who a strategy is comes before what it does), and the category plus
+both warning lists in the Backtesting Lab report.
+`tests/test_strategy_identity.py` compares the registry metadata against the
+identity field by field and the identity set against the guide set, so a
+seventh strategy cannot arrive with a name the rest of the program does not
+use. Documented in `docs/en/developers/strategy-identity.md`.
 
 ### 33.2 Market requirements
 

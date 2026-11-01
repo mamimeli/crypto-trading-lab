@@ -24,6 +24,7 @@ from crypto_trading_lab.strategy_parameters import (
     ParameterSchema,
     ParameterSet,
 )
+from crypto_trading_lab.strategy_identity import IDENTITIES, StrategyIdentity
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,10 @@ class StrategyMetadata:
     #: JSON round trip; an imported entry is validated parameter by parameter
     #: only (see ``StrategyRegistry._load``).
     parameter_schema: Optional[ParameterSchema] = None
+    #: Chapter 33.1: which kind of strategy this is (trend-following,
+    #: mean-reversion, breakout, benchmark, baseline). Empty only for an entry
+    #: imported from a file written before the field existed.
+    category: str = ""
 
 
 @dataclass
@@ -136,36 +141,41 @@ class StrategyRegistry:
             ("ma_crossover", MACrossoverStrategy, {
                 "fast": {"type": "int", "min": 1, "max": 200, "default": 10, "description": "Fast SMA period"},
                 "slow": {"type": "int", "min": 1, "max": 500, "default": 30, "description": "Slow SMA period"},
-            }, "Moving Average Crossover Strategy", "Built-in",
-             {"rules": 2, "indicators": 2, "filters": 0, "conditions": 2},
+            }, {"rules": 2, "indicators": 2, "filters": 0, "conditions": 2},
              (fast_below_slow,)),
-            ("buy_and_hold", BuyAndHoldStrategy, {}, "Buy and Hold Strategy", "Built-in",
+            ("buy_and_hold", BuyAndHoldStrategy, {},
              {"rules": 1, "indicators": 0, "filters": 0, "conditions": 0},
              ()),
-            ("null_strategy", NullStrategy, {}, "Null Strategy (never trades)", "Built-in",
+            ("null_strategy", NullStrategy, {},
              {"rules": 0, "indicators": 0, "filters": 0, "conditions": 0},
              ()),
-            ("rsi", RSIStrategy, {"period": {"type": "int", "min": 1, "max": 200, "default": 14, "description": "RSI period"}, "oversold": {"type": "int", "min": 1, "max": 99, "default": 30, "description": "Oversold level"}, "overbought": {"type": "int", "min": 2, "max": 99, "default": 70, "description": "Overbought level"}, "volume_filter_period": {"type": "int", "min": 0, "max": 200, "default": 0, "description": "Volume-filter SMA period (0 disables)"}, "trend_filter_period": {"type": "int", "min": 0, "max": 500, "default": 0, "description": "Trend-filter SMA period (0 disables)"}, "cooldown": {"type": "int", "min": 0, "max": 500, "default": 0, "description": "Candles to wait after an exit"}}, "RSI Strategy (configurable filters)", "Built-in",
+            ("rsi", RSIStrategy, {"period": {"type": "int", "min": 1, "max": 200, "default": 14, "description": "RSI period"}, "oversold": {"type": "int", "min": 1, "max": 99, "default": 30, "description": "Oversold level"}, "overbought": {"type": "int", "min": 2, "max": 99, "default": 70, "description": "Overbought level"}, "volume_filter_period": {"type": "int", "min": 0, "max": 200, "default": 0, "description": "Volume-filter SMA period (0 disables)"}, "trend_filter_period": {"type": "int", "min": 0, "max": 500, "default": 0, "description": "Trend-filter SMA period (0 disables)"}, "cooldown": {"type": "int", "min": 0, "max": 500, "default": 0, "description": "Candles to wait after an exit"}},
              # RSI + the volume average + the trend average; three filters:
              # volume, trend and the cooldown after an exit.
              {"rules": 2, "indicators": 3, "filters": 3, "conditions": 2},
              (oversold_below_overbought,)),
-            ("breakout", RollingHighLowBreakoutStrategy, {"period": {"type": "int", "min": 2, "max": 500, "default": 20, "description": "Lookback bars for the rolling range"}}, "Rolling High/Low Breakout Strategy", "Built-in",
+            ("breakout", RollingHighLowBreakoutStrategy, {"period": {"type": "int", "min": 2, "max": 500, "default": 20, "description": "Lookback bars for the rolling range"}},
              {"rules": 2, "indicators": 2, "filters": 0, "conditions": 2},
              ()),
-            ("bollinger", BollingerBandsMeanReversionStrategy, {"period": {"type": "int", "min": 1, "max": 500, "default": 20, "description": "Bollinger SMA period"}, "k": {"type": "int", "min": 1, "max": 10, "default": 2, "description": "Number of standard deviations"}}, "Bollinger Bands Mean Reversion Strategy", "Built-in",
+            ("bollinger", BollingerBandsMeanReversionStrategy, {"period": {"type": "int", "min": 1, "max": 500, "default": 20, "description": "Bollinger SMA period"}, "k": {"type": "int", "min": 1, "max": 10, "default": 2, "description": "Number of standard deviations"}},
              {"rules": 2, "indicators": 3, "filters": 0, "conditions": 2},
              ()),
         ]
 
-        for strategy_id, factory, params, desc, author, structure, rules in builtins:
+        for strategy_id, factory, params, structure, rules in builtins:
+            # Chapter 33.1: name, version, author, description and category
+            # come from the identity record, so the registry cannot invent a
+            # name from the identifier ("ma_crossover" used to become
+            # "Ma Crossover") or disagree with the docs.
+            identity = IDENTITIES[strategy_id]
             self.register(
                 strategy_id=strategy_id,
                 factory=factory,
-                name=strategy_id.replace("_", " ").title(),
-                version="1.0.0",
-                author=author,
-                description=desc,
+                name=identity.name,
+                version=identity.version,
+                author=identity.author,
+                description=identity.description,
+                category=identity.category,
                 parameters_schema=params,
                 structure=structure,
                 combination_rules=rules,
@@ -188,6 +198,7 @@ class StrategyRegistry:
         is_builtin: bool = False,
         structure: Optional[Dict[str, int]] = None,
         combination_rules: Sequence[CombinationRule] = (),
+        category: str = "",
     ) -> StrategyRegistration:
         """Register a new strategy.
 
@@ -200,6 +211,10 @@ class StrategyRegistry:
         ``combination_rules`` are the chapter 33.4 checks no single parameter
         can express (``fast < slow``). They run in :meth:`create_instance`,
         before the strategy is built.
+
+        ``category`` is the chapter 33.1 classification. It is optional for
+        strategies registered from code outside this package, which may not
+        have been classified yet; the built-ins always declare one.
         """
         if strategy_id in self._strategies and self._strategies[strategy_id].metadata.is_builtin:
             raise ValueError(f"Cannot overwrite built-in strategy: {strategy_id}")
@@ -234,6 +249,7 @@ class StrategyRegistry:
             min_data_requirements=min_data_requirements or {},
             complexity=complexity,
             parameter_schema=parameter_schema,
+            category=category,
         )
 
         registration = StrategyRegistration(
@@ -362,6 +378,7 @@ class StrategyRegistry:
                     else ()
                 ),
             ),
+            category=updates.get("category", metadata.category),
         )
 
         self._strategies[strategy_id] = StrategyRegistration(
@@ -397,6 +414,7 @@ class StrategyRegistry:
                     "version": reg.metadata.version,
                     "author": reg.metadata.author,
                     "description": reg.metadata.description,
+                    "category": reg.metadata.category,
                     "tags": list(reg.metadata.tags),
                     "created_at": reg.metadata.created_at.isoformat(),
                     "updated_at": reg.metadata.updated_at.isoformat(),
@@ -456,6 +474,9 @@ class StrategyRegistry:
                 parameter_schema=_typed_schema_or_none(
                     meta["parameters_schema"]
                 ),
+                # A file written before chapter 33.1 has no category; an
+                # empty one means "not classified", which is the truth.
+                category=meta.get("category", ""),
             )
             # Note: factory not restored from JSON - must be re-registered
             self._strategies[meta["strategy_id"]] = StrategyRegistration(

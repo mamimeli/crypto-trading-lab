@@ -66,6 +66,7 @@ from crypto_trading_lab.strategy_guide import (
     guide_for,
     render as render_guide,
 )
+from crypto_trading_lab.strategy_identity import identity_for
 
 STRATEGY_SMA = "ma_crossover"
 STRATEGY_BUY_HOLD = "buy_and_hold"
@@ -876,11 +877,21 @@ class BacktestingLabWidget(QWidget):
                 ).format(x=strategy_id),
                 "",
             ]
-        return [
-            self.tr("== What this strategy is trying to do =="),
-            render_guide(guide),
-            "",
-        ]
+        lines = [self.tr("== What this strategy is trying to do ==")]
+        # Chapter 33.1: the weaknesses and risk warnings the strategy itself
+        # declares, next to the result they apply to.
+        identity = identity_for(strategy_id)
+        if identity is not None:
+            lines.append(
+                self.tr("Category: {x}").format(x=identity.category)
+            )
+            lines.append(self.tr("Known weaknesses:"))
+            lines.extend(f"  - {item}" for item in identity.known_weaknesses)
+            lines.append(self.tr("Risk warnings:"))
+            lines.extend(f"  - {item}" for item in identity.risk_warnings)
+            lines.append("")
+        lines.extend([render_guide(guide), ""])
+        return lines
 
     def _comparison_lines(self, report, benchmark_report) -> list[str]:
         """Relative benchmark comparison (chapter 42.2)."""

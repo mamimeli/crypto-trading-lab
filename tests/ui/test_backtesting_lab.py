@@ -96,6 +96,15 @@ def test_the_report_explains_what_the_strategy_assumes(lab):
     assert "Why a profitable backtest is not a promise:" in text
 
 
+def test_the_report_shows_the_declared_weaknesses_and_warnings(lab):
+    # Chapter 33.1: the strategy's own confession travels with its result.
+    text = lab.run_and_display()
+    assert "Category: trend-following" in text
+    assert "Known weaknesses:" in text
+    assert "Risk warnings:" in text
+    assert "There is no stop." in text
+
+
 def test_beginner_explanation_and_honesty(lab):
     text = lab.run_and_display()
     # 37.10 + 40.8 mandatory explanations and disclaimers.

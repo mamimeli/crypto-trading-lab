@@ -165,6 +165,9 @@ def test_list_strategies_prints_builtins(tmp_path, capsys):
     assert code == 0
     assert "ma_crossover" in output
     assert "null_strategy" in output
+    # Chapter 33.1: the category is part of the listing, not hidden in a file.
+    assert "trend-following" in output
+    assert "baseline" in output
 
 
 def test_list_strategies_alias_still_works(tmp_path, capsys):
@@ -188,6 +191,11 @@ def test_list_strategies_explain_answers_the_beginner_questions(
     assert code == 0
     assert "What it tries to do:" in output
     assert "Why a profitable backtest is not a promise:" in output
+    # Chapter 33.1 declarations come first: identity, then behaviour.
+    assert "Category: trend-following" in output
+    assert "Known weaknesses:" in output
+    assert "Risk warnings:" in output
+    assert output.index("Risk warnings:") < output.index("What it tries to do:")
     # It explains one strategy, not all of them.
     assert "Null strategy" not in output
 

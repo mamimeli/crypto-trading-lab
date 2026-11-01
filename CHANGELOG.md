@@ -31,6 +31,22 @@ per-chapter state of the specification, see [`ROADMAP.md`](ROADMAP.md).
 
 ### Added
 
+- **Chapter 33.1 (identity) closed — a strategy is named in one place.** New
+  `strategy_identity.py` holds one frozen `StrategyIdentity` per built-in
+  strategy with the nine facts the chapter asks for: name, identifier,
+  version, author, description, category, beginner explanation, known
+  weaknesses and risk warnings. The registry now reads name/version/author/
+  description/category from it, which retires the
+  `strategy_id.replace("_", " ").title()` guess that produced "Ma Crossover"
+  and the hand-typed descriptions that lived only inside
+  `_load_builtin_strategies`. `StrategyMetadata.category` is exported and
+  imported through JSON. Weaknesses and risk warnings are separate fields on
+  purpose: one is where the strategy is fragile, the other is what that does
+  to an account, and a single merged list would let a strategy declare the
+  mild version of each. Visible in `list-strategies` (category), in
+  `list-strategies --explain ID` (identity block before the guide) and in the
+  Backtesting Lab report.
+
 - **Chapter 33.9 (beginner documentation) closed — every strategy answers
   the ten questions.** New `strategy_guide.py` holds one frozen
   `StrategyGuide` per built-in strategy, and `render()` turns it into the text
