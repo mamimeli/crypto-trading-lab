@@ -108,6 +108,25 @@ per-chapter state of the specification, see [`ROADMAP.md`](ROADMAP.md).
   is surfaced next to every stop declaration. All nine boxes ticked; chapter 33
   is at 83 of 86.
 
+- **Strategy comparison — the simpler-wins rule is now behaviour.** New
+  `strategy_comparison.py` is the caller that was missing for
+  `complexity_control.prefer_simpler()`. `compare_strategies(a_id, b_id,
+  *, evidence_a, evidence_b, tolerance, registry)` resolves two
+  strategies' `StrategyComplexity` from the registry and, when both
+  evidence numbers are supplied, calls `prefer_simpler()` to decide:
+  within the relative tolerance the simpler strategy wins; beyond it the
+  better evidence wins, and the reason says which. When either evidence
+  is missing, the two complexities are still reported and `SIMPLER_WINS`
+  is shown as policy — the honest state, because without two measured
+  numbers there is nothing to weigh. The `compare-strategies A B
+  [--evidence-a X --evidence-b Y --tolerance 0.10]` CLI subcommand prints
+  the comparison. So ROADMAP 33.8's seventh box is now behaviour the
+  program performs, not just a carried warning, and ROADMAP 35's two
+  comparable-evidence boxes are backed by a screen the user can run.
+  Developer page `docs/en/developers/strategy-comparison.md`, beginner
+  note in `docs/en/beginners/strategy-guides.md`. Chapter 33 is now 84
+  of 86; chapter 35 is 11 with 1 open.
+
 - **Chapter 33.8 (research warnings) — the caveats that travel with the
   number.** New `research_warnings.py` holds the chapter's seven statements
   as constants, because a warning paraphrased differently on every screen is
@@ -119,10 +138,10 @@ per-chapter state of the specification, see [`ROADMAP.md`](ROADMAP.md).
   chapter 35 record is missing. The CLI prints them under "Before you trust
   this result", and the Backtesting Lab appends the same canonical text to its
   "Please read before trusting this" block — the hand-written duplicates in
-  the GUI were removed so the two surfaces cannot drift. 6 of 7 boxes ticked;
-  the seventh ("favour simpler strategies when performance is comparable")
-  stays open because `prefer_simpler` still has no screen that compares two
-  strategies.
+  the GUI were removed so the two surfaces cannot drift. The seventh box
+  ("favour simpler strategies when performance is comparable") is now
+  closed: the `compare-strategies` command calls `prefer_simpler` when
+  evidence is supplied (see the strategy-comparison entry below).
 
 - **Chapter 33.6 (mandatory architecture) closed — the flow is enforced, not
   described.** `run_backtest()` now builds a `RiskManager` per run and

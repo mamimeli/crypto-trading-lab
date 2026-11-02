@@ -139,9 +139,9 @@ task order is in `AGENT-HANDOFF.md` §5.2.
 | 30 | [~] | 14 | 11 | No | Market precision and exchange rules |
 | 31 | [~] | 23 | 6 | No | Technical indicators |
 | 32 | [~] | 18 | 16 | No | Financial charts |
-| 33 | [~] | 83 | 3 | No | Strategies |
+| 33 | [~] | 84 | 2 | No | Strategies |
 | 34 | [ ] | 0 | 24 | No | Visual strategy builder |
-| 35 | [~] | 9 | 3 | Yes | Strategy complexity control |
+| 35 | [~] | 11 | 1 | Yes | Strategy complexity control |
 | 36 | [~] | 4 | 15 | No | Strategy registry |
 | 37 | [~] | 55 | 66 | No | Backtesting |
 | 38 | [~] | 21 | 24 | Sí | Data splitting |
@@ -2413,7 +2413,7 @@ The application must warn users that:
 * [x] A higher historical profit does not necessarily mean a better strategy.
 * [x] A strategy must be evaluated on data that was not used to design or optimize it.
 * [x] Strategy complexity should be recorded (see Chapter 35).
-* [ ] The system should favor simpler strategies when performance is otherwise comparable.
+* [x] The system should favor simpler strategies when performance is otherwise comparable.
 
 **Implemented 2026-10-31 (6 of 7).** `research_warnings.py` holds the seven
 statements as constants, because a warning rewritten slightly differently on
@@ -2429,12 +2429,12 @@ and the Backtesting Lab appends the same canonical text to its "Please read
 before trusting this" block — the duplicated hand-written lines in the GUI
 were removed so the two surfaces cannot drift.
 
-**The last box stays open on purpose.** "The system should favour simpler
-strategies when performance is otherwise comparable" needs a screen that
-compares two strategies; `prefer_simpler` exists and is tested (chapter 35),
-but nothing calls it yet, so `SIMPLER_WINS` is carried in the statement set
-and shown as policy rather than claimed as behaviour. Same honest state as
-chapter 35's two open boxes.
+**The seventh box closed 2026-11-02.** The `compare-strategies` command
+(`strategy_comparison.compare_strategies`) now calls `prefer_simpler`
+when two evidence numbers are supplied (decision mode) and reports
+`SIMPLER_WINS` as policy when they are not. So the statement is now
+behaviour the program performs, not just a warning it carries. See
+`docs/en/developers/strategy-comparison.md`.
 
 ### 33.9 Beginner documentation
 
@@ -2528,8 +2528,8 @@ The system must consider strategy complexity explicitly.
   - [x] optimization complexity;
   - [x] model complexity where machine learning is used (see Chapter 48).
 
-- [ ] A strategy with many parameters, indicators, and filters must not be considered automatically superior to a simpler one.
-- [ ] When two strategies provide comparable evidence, the simpler strategy must be favored.
+- [x] A strategy with many parameters, indicators, and filters must not be considered automatically superior to a simpler one.
+- [x] When two strategies provide comparable evidence, the simpler strategy must be favored.
 - [x] Complexity metrics must be displayed in strategy reports and qualification reviews (see Chapter 66).
 - [ ] The application must warn when complexity grows without a corresponding evidence improvement.
 
@@ -2545,11 +2545,19 @@ boolean.
 The two decision rules exist, are tested and are documented in
 `docs/en/developers/strategy-complexity.md` — `prefer_simpler()` (comparable
 evidence → lower complexity wins) and `complexity_growth_warning()` (growth
-without better evidence) — but **no screen calls them yet**: the application
-still has no view that compares two strategies side by side (the registry
-comparison of chapter 36 is open). They are therefore left unticked: the
-rule is written down and exercised by tests, not yet part of a user's
-decision.
+without better evidence). `prefer_simpler` now has a caller: the
+`compare-strategies` command (`strategy_comparison.compare_strategies`,
+added 2026-11-02) resolves two strategies' complexity from the registry,
+applies the rule when both evidence numbers are supplied, and reports
+`SIMPLER_WINS` as policy when they are not. So "comparable evidence →
+simpler wins" and "more complex is not automatically superior" are now
+backed by a screen the user can run. See
+`docs/en/developers/strategy-comparison.md`.
+
+Still open, and honestly so: `complexity_growth_warning` — "warn when
+complexity grows without a corresponding evidence improvement" — needs a
+*version*-comparison surface (two versions of the same strategy), which
+the two-*strategy* command does not provide.
 
 Two deliberate limits, stated so nobody mistakes them for bugs. A parameter
 with no declared bounds counts as one setting rather than a guessed range,

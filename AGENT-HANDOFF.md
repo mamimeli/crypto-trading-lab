@@ -10,19 +10,19 @@ A new AI Agent must read this file **before** doing anything else, then
 
 ---
 
-## 1. Project state (last updated 2026-11-01)
+## 1. Project state (last updated 2026-11-02)
 
 - **Repository:** `https://github.com/wachin/crypto-trading-lab`
   (branch `main`)
 - **State verified at commit:** the commit that carries this file.
-- **Tests:** 1240 passed, 2 skipped, **exit code 0** —
+- **Tests:** 1252 passed, 2 skipped, **exit code 0** —
   `QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q`
   (The exit code matters: the suite used to segfault while the interpreter
   shut down, so it printed "passed" and still failed the build. See §5.)
-- **CI:** `tests` is **green on `main`**, but **not yet at 1240**: the last
+- **CI:** `tests` is **green on `main`**, but **not yet at 1252**: the last
   observed green run reports 990/2 on `ubuntu-24.04` with pip and carries
   **no annotations**. The chapter 35, 33.4, 33.5, 33.6, 33.7, 33.8 and 33.9
-  changes add 217 tests in total (990 → 1240) and have only been
+  changes add 229 tests in total (990 → 1252) and have only been
   measured locally (Windows, Python 3.12). The history is at
   [actions/workflows/tests.yml](https://github.com/wachin/crypto-trading-lab/actions/workflows/tests.yml).
   The first green run was `38777456963` (2026-10-15); the suite had never
@@ -30,15 +30,15 @@ A new AI Agent must read this file **before** doing anything else, then
 - **Verified platforms:** Debian 13 (system packages, Python 3.13.5) and
   **Windows 10** (pip/PyPI, Python 3.14.7, 2026-10-01 — clean install, the
   window opens, identical numbers, `ccxt` reaches the network). The Windows
-  path was re-measured on 2026-10-31 with **Python 3.12**: 1240/2, after two
+  path was re-measured on 2026-11-02 with **Python 3.12**: 1252/2, after two
   platform assumptions in the suite were fixed (see §5.2 item 10).
 - **macOS — deferred by the maintainer's decision, not a pending task.** It
   comes last, once the program works on Linux and Windows. Do not spend a
   session on it and do not treat a macOS failure as a blocker. The steps are
   prepared in `README.md` and `docs/en/developers/venv-setup.md`; the
   manual `cross-platform` workflow can measure it when its turn arrives.
-- **Source:** 114 Python files under `src/crypto_trading_lab/`
-- **Tests:** 90 test modules under `tests/`
+- **Source:** 115 Python files under `src/crypto_trading_lab/`
+- **Tests:** 91 test modules under `tests/`
 - **Documentation:** `docs/en/beginners/` and
   `docs/en/developers/` (virtualenv guide in `venv-setup.md`, audit in
   `unwired-modules-audit.md`)
@@ -669,9 +669,28 @@ features the code did not ship. Concretely:
     1) at construction. `validate_for_run` warns when a rule has neither an
     exit nor a stop. Visible in `list-strategies --explain ID` (a Trading rules
     block), the Backtesting Lab report, and `docs/en/beginners/strategy-guides.md`.
-    All nine boxes ticked; chapter 33 is `[~]` at 83 of 86. **Next task:**
-    chapter 33.8's seventh box (`prefer_simpler` has no caller/screen that
-    compares two strategies) and 33.5's two short-side boxes.
+    All nine boxes ticked; chapter 33 is `[~]` at 83 of 86.
+
+21. **Chapter 33.8 seventh box + chapter 35 — strategy comparison.**
+    **DONE 2026-11-02.** `strategy_comparison.py` is the caller that was
+    missing: `compare_strategies(a_id, b_id, *, evidence_a, evidence_b,
+    tolerance, registry)` resolves two strategies' `StrategyComplexity`
+    from the registry, calls `complexity_control.prefer_simpler()` when
+    both evidence numbers are supplied (decision mode), and reports
+    `SIMPLER_WINS` as policy when they are not. The `compare-strategies
+    A B [--evidence-a X --evidence-b Y --tolerance 0.10]` CLI subcommand
+    prints the comparison via `render_comparison()`. So the "favour the
+    simpler strategy when performance is comparable" rule is now
+    behaviour the program performs, not just a carried warning. ROADMAP
+    33.8 seventh box ticked (chapter 33 now 84 of 86); ROADMAP 35's two
+    comparable-evidence boxes ticked (chapter 35 now 11 with 1 open —
+    only `complexity_growth_warning` remains, which needs a version-
+    comparison surface). Developer page
+    `docs/en/developers/strategy-comparison.md`, beginner note in
+    `docs/en/beginners/strategy-guides.md`. **Next task:** 33.5's two
+    short-side boxes (deliberately unticked — engine is long-only spot)
+    and chapter 35's `complexity_growth_warning` (needs a same-strategy
+    version comparison).
 
 Anything in `ROADMAP.md` marked `[ ]` or `[~]` is fair game. The roadmap is
 the specification; this list is only the recommended order.
@@ -697,7 +716,7 @@ git submodule update --init external/freqtrade
 # 2. Verify the environment:
 python3 --version            # ≥ 3.11 expected (3.13 on record)
 python3 -c "import PyQt6, pyqtgraph, sqlalchemy, platformdirs; print('deps OK')"
-QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1240 passed, 2 skipped expected
+QT_QPA_PLATFORM=offscreen python3 -m pytest tests/ -q   # 1252 passed, 2 skipped expected
 
 # 3. Read in this order:
 #    1. AGENT-HANDOFF.md (this file) — state and next steps
@@ -711,4 +730,4 @@ If the test count differs, stop and report it before changing anything.
 
 ---
 
-*Handoff updated 2026-10-31. Baseline: 1240 passed, 2 skipped.*
+*Handoff updated 2026-11-02. Baseline: 1252 passed, 2 skipped.*

@@ -55,6 +55,7 @@ def test_parser_exposes_every_chapter_22_command():
         "list-strategies",
         "list-lessons",
         "glossary",
+        "compare-strategies",
     ):
         assert expected in commands
 
@@ -248,6 +249,50 @@ def test_list_lessons_filters_by_level(tmp_path, capsys):
     assert code == 0
     assert "[Level 3]" in output
     assert "[Level 1]" not in output
+
+
+# -- compare-strategies (chapters 33.8 and 35) -----------------------------
+
+
+def test_compare_strategies_policy_mode_reports_complexity(tmp_path, capsys):
+    code = run(
+        ["compare-strategies", "ma_crossover", "rsi", "--data-dir", str(tmp_path / "data")]
+    )
+    output = capsys.readouterr().out
+    assert code == 0
+    assert "ma_crossover" in output
+    assert "rsi" in output
+    assert "Policy:" in output
+    assert "favours the simpler" in output
+
+
+def test_compare_strategies_applies_the_simpler_wins_rule(tmp_path, capsys):
+    code = run(
+        [
+            "compare-strategies",
+            "ma_crossover",
+            "rsi",
+            "--evidence-a",
+            "1.05",
+            "--evidence-b",
+            "1.00",
+            "--data-dir",
+            str(tmp_path / "data"),
+        ]
+    )
+    output = capsys.readouterr().out
+    assert code == 0
+    assert "Decision: ma_crossover" in output
+    assert "simpler" in output.lower()
+
+
+def test_compare_strategies_rejects_an_unknown_strategy(tmp_path, capsys):
+    code = run(
+        ["compare-strategies", "nope", "rsi", "--data-dir", str(tmp_path / "data")]
+    )
+    captured = capsys.readouterr()
+    assert code == 1
+    assert "Unknown strategy" in captured.err
 
 
 # -- glossary --------------------------------------------------------------

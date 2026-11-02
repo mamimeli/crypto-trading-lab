@@ -26,6 +26,12 @@ from crypto_trading_lab.trading_rules import (
     trading_rules_for,
     render_trading_rules,
 )
+from crypto_trading_lab.strategy_comparison import (
+    compare_strategies,
+    render_comparison,
+)
+from crypto_trading_lab.strategy_registry import StrategyRegistry
+from crypto_trading_lab.configuration.xdg import AppPaths
 
 #: How each doctor status is shown.
 _STATUS_LABEL = {
@@ -177,6 +183,43 @@ def _explain_strategies(explain: str, strategies: Any) -> int:
         print(render(guide))
         explained += 1
     return 0 if explained else 1
+
+
+def compare_strategies_cmd(args: Any) -> int:
+    """Compare two strategies on evidence and complexity (chapters 33.8, 35).
+
+    Resolves both strategies from the registry and reads the complexity each
+    version declares, then applies the parsimony rule when the caller supplies
+    the same performance metric from two backtests. Without evidence it reports
+    the two complexities and the SIMPLER_WINS policy, which is the honest
+    state for a run that has no two strategies to weigh.
+    """
+    paths = getattr(args, "paths", None)
+    if paths is None:
+        paths = AppPaths()
+    registry = StrategyRegistry(
+        storage_path=paths.data_dir / "strategy_registry"
+    )
+    for strategy_id in (args.strategy_a, args.strategy_b):
+        if registry.get(strategy_id) is None:
+            known = ", ".join(
+                meta.strategy_id for meta in registry.list_strategies()
+            )
+            print(
+                f"Unknown strategy {strategy_id!r}; registered: {known}",
+                file=sys.stderr,
+            )
+            return 1
+    comparison = compare_strategies(
+        args.strategy_a,
+        args.strategy_b,
+        evidence_a=getattr(args, "evidence_a", None),
+        evidence_b=getattr(args, "evidence_b", None),
+        tolerance=Decimal(str(getattr(args, "tolerance", "0.10"))),
+        registry=registry,
+    )
+    print(render_comparison(comparison))
+    return 0
 
 
 def list_lessons(args: Any) -> int:
@@ -480,6 +523,42 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_paths_option(list_strategies_parser)
 
+    compare_parser = subparsers.add_parser(
+        "compare-strategies",
+        help="Compare two strategies on evidence and complexity (33.8, 35)",
+    )
+    compare_parser.add_argument(
+        "strategy_a", help="first strategy id (from list-strategies)"
+    )
+    compare_parser.add_argument(
+        "strategy_b", help="second strategy id (from list-strategies)"
+    )
+    compare_parser.add_argument(
+        "--evidence-a",
+        dest="evidence_a",
+        type=float,
+        default=None,
+        help=(
+            "the same performance metric from strategy A's backtest "
+            "(e.g. deflated Sharpe); supply both --evidence-a and "
+            "--evidence-b to apply the simpler-wins rule"
+        ),
+    )
+    compare_parser.add_argument(
+        "--evidence-b",
+        dest="evidence_b",
+        type=float,
+        default=None,
+        help="the same performance metric from strategy B's backtest",
+    )
+    compare_parser.add_argument(
+        "--tolerance",
+        type=float,
+        default=0.10,
+        help="relative tolerance for 'comparable evidence' (default 0.10)",
+    )
+    _add_paths_option(compare_parser)
+
     list_lessons_parser = subparsers.add_parser(
         "list-lessons", help="List the lessons in the curriculum"
     )
@@ -532,6 +611,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return database_check(args)
     if args.command == "list-strategies":
         return list_strategies(args)
+    if args.command == "compare-strategies":
+        return compare_strategies_cmd(args)
     if args.command == "list-lessons":
         return list_lessons(args)
     if args.command == "list":

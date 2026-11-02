@@ -310,9 +310,35 @@ If you cannot answer that second question about a strategy — yours or
 one from this page — you do not have a strategy yet. You have a
 backtest.
 
+## When two strategies are close: favour the simpler one (chapters 33.8 and 35)
+
+When you have backtested two strategies and their results are close, a
+natural instinct is to pick the one that scored slightly higher. The
+program's rule — and the research discipline behind it — is the
+opposite: **when evidence is comparable, the simpler strategy wins.**
+
+The command `crypto_trading_lab compare-strategies A B --evidence-a X
+--evidence-b Y` does this for you. Give it the same metric from two
+backtests (both Sharpe ratios, or both total returns). If the two are
+within 10% of each other, the simpler strategy is preferred and the
+reason says "comparable evidence." If one is clearly ahead, that one
+wins and the reason says "evidence difference exceeds tolerance."
+
+If you supply only one or neither evidence number, the command reports
+both strategies' complexity and shows the rule as **policy** — a
+reminder that simpler is preferred — but does not make a decision,
+because without two measured numbers there is nothing to weigh.
+
+Simplicity is not free: a strategy too simple for the market is also
+useless. But a strategy more complex than its evidence justifies will
+overfit, and overfit is the failure mode this program exists to
+detect.
+
 ---
 
 *See also: [indicators explained](indicators-explained.md),
 [performance metrics](performance-metrics.md),
-[statistical edge](statistical-edge.md) and the developer page on
+[statistical edge](statistical-edge.md), the developer page on
+[strategy comparison](../developers/strategy-comparison.md) and the
+developer page on
 [research ethics](../developers/research-ethics.md).*
