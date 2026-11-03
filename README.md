@@ -133,8 +133,10 @@ cryptocurrency research laboratory. Follow these rules exactly.
   [`docs/en/developers/unwired-modules-audit.md`](docs/en/developers/unwired-modules-audit.md)
   records every module that was found unwired, with a decision and its
   evidence. All 16 are resolved, and the chapter 22 CLI now really runs
-  its commands; the newest open item is the execution model in the
-  backtest engine (chapter 56.5).
+  its commands; chapter 56.5 (execution realism) closed the last of them.
+  The live list of what is still open — including the one unbacked
+  chapter-35 warning and the deliberately-unticked chapter-33.5 short-side
+  boxes — lives in [`AGENT-HANDOFF.md`](AGENT-HANDOFF.md) §5.2.
 - **Verify another platform** — run the manual
   [`cross-platform` workflow](.github/workflows/cross-platform.yml) on
   Ubuntu, macOS or Windows; it installs the package and runs the suite on
@@ -851,10 +853,12 @@ None of this is a promise that the day will come.
 18. ⬜ **Binance WebSocket** — reconnection, rate limiting and
     stale-data detection.
 19. ⬜ **Testnet** — order placement, cancellation, reconciliation.
-20. 🟡 **Realistic execution** — latency, partial fills and market impact
-    drive the paper-trading pipeline (chapter 56 wired 2026-09-27). The
-    **backtest engine and robustness analysis still use the simple cost
-    model**, so 56.5 is not complete yet.
+20. ✅ **Realistic execution** — latency, partial fills and market impact
+    drive the paper-trading pipeline (chapter 56 wired 2026-09-27) and now
+    also the backtest engine and robustness analysis: `BacktestConfig.
+    execution_config` selects the synthetic-book model and `compare_
+    execution_models` quantifies the difference (chapter 56.5 closed
+    2026-10-28).
 21. ⬜ **Order and balance reconciliation**.
 22. 🟡 **Kill switch** — implemented and unit-tested; never exercised
     against a live or testnet account.
