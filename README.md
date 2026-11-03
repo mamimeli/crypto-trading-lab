@@ -178,7 +178,7 @@ history and is recorded in [`CHANGELOG.md`](CHANGELOG.md).
 
 | Task | Where |
 |---|---|
-| Feed the chapter-56 execution model into the backtest engine too | `backtesting/engine.py`, chapter 56.5 |
+| Give the chapter-35 complexity-growth warning a CLI caller (`compare-strategy-versions`) | `strategy_comparison.py`, `complexity_control.py`, chapter 35 |
 | Finish the Debian packaging (stale `debian/rules`, missing dependencies) | `debian/`, chapter 82 |
 | Add the missing glossary terms (asset, blockchain, wallet, spread, liquidity, out-of-sample, walk-forward, robustness…) | `docs/en/beginners/glossary.md`, chapter 24 |
 | Translate the new UI strings into Spanish | `.ts` via Qt Linguist |

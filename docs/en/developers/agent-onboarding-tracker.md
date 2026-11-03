@@ -6,7 +6,7 @@ is the single place to check whether the agent-onboarding surface is
 complete and current; the files themselves remain the source of truth
 for their content.
 
-Last verified: 2026-11-02 (baseline updated to 1252 by the strategy comparison work).
+Last verified: 2026-11-03 (handoff instructions refreshed; baseline unchanged at 1252 passed, 2 skipped).
 
 ## Core agent files
 

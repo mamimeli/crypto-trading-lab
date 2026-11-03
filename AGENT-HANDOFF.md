@@ -10,7 +10,7 @@ A new AI Agent must read this file **before** doing anything else, then
 
 ---
 
-## 1. Project state (last updated 2026-11-02)
+## 1. Project state (last updated 2026-11-03)
 
 - **Repository:** `https://github.com/wachin/crypto-trading-lab`
   (branch `main`)
@@ -687,10 +687,35 @@ features the code did not ship. Concretely:
     only `complexity_growth_warning` remains, which needs a version-
     comparison surface). Developer page
     `docs/en/developers/strategy-comparison.md`, beginner note in
-    `docs/en/beginners/strategy-guides.md`. **Next task:** 33.5's two
-    short-side boxes (deliberately unticked — engine is long-only spot)
-    and chapter 35's `complexity_growth_warning` (needs a same-strategy
-    version comparison).
+    `docs/en/beginners/strategy-guides.md`.
+
+    **Continuation point (2026-11-03).** The only boxes still open in
+    chapters 33 and 35 after this commit are:
+    - *Chapter 33.5 — two short-side boxes.* `enter_short` / `exit_short`
+      exist in the `SignalType` vocabulary (`src/crypto_trading_lab/
+      signals.py`) but nothing emits them: the engine is **long-only
+      spot**, so no strategy can signal a short yet. The box opens only
+      when a short-capable engine lands (a later chapter, not this one).
+      **Do not fake it** — leaving it unticked is the honest state, and the
+      validation/rule layers already refuse a short until the engine can.
+    - *Chapter 35 — the `complexity_growth_warning` caller.* The rule is
+      implemented and tested in `src/crypto_trading_lab/complexity_control.py`
+      (`complexity_growth_warning(previous, current, evidence_before,
+      evidence_after, tolerance)`), but nothing compares two versions of
+      one strategy. To close it, mirror the work already done for
+      `prefer_simpler`: extend `src/crypto_trading_lab/strategy_comparison.py`
+      with `compare_versions(...)` + `render_version_comparison()` (copy the
+      shape of the existing `compare_strategies` / `render_comparison`
+      pair) and add a `compare-strategy-versions` CLI subcommand in
+      `src/crypto_trading_lab/cli.py` that takes the two `StrategyComplexity`
+      records as JSON (`--previous`, `--current`) plus `--evidence-before`
+      / `--evidence-after` (and `--tolerance`, default 0.10). The registry
+      stores only the *current* complexity (no version history yet), so the
+      caller supplies both records; a future version-history surface would
+      feed it automatically. When done, tick ROADMAP 35's last box — chapter
+      35 becomes `[x]` (12 of 12) and chapter 33 stays `[~]` at 84 of 86.
+    The wider scientific loop (chapters 37–46, 57) is the broader frontier;
+    any open `[ ]` / `[~]` box in `ROADMAP.md` is fair game.
 
 Anything in `ROADMAP.md` marked `[ ]` or `[~]` is fair game. The roadmap is
 the specification; this list is only the recommended order.
@@ -730,4 +755,4 @@ If the test count differs, stop and report it before changing anything.
 
 ---
 
-*Handoff updated 2026-11-02. Baseline: 1252 passed, 2 skipped.*
+*Handoff updated 2026-11-03. Baseline: 1252 passed, 2 skipped.*
